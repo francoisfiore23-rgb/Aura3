@@ -9,8 +9,7 @@
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Lucide Icons IMPORTATION RETIRÉE pour éviter les erreurs de SyntaxError répétitives -->
-    
+    <!-- Styles (inchangés) -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -80,7 +79,15 @@
 
         // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* mock config */ };
+        
+        // --- CORRECTION: Utilisation d'une configuration par défaut complète pour éviter l'erreur "projectId not provided" ---
+        const defaultFirebaseConfig = { projectId: 'default-mock-project', apiKey: '', authDomain: '', databaseURL: '', storageBucket: '', messagingSenderId: '', appId: '' };
+        
+        // Lisez la configuration fournie par l'environnement, sinon utilisez la configuration par défaut.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? 
+                                JSON.parse(__firebase_config) : 
+                                defaultFirebaseConfig;
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // --- GLOBAL APP STATE & DB SETUP ---
@@ -169,11 +176,17 @@
                 setTimeout(() => { box.classList.remove('show'); }, 5000);
             }
         }
-
+        
+        // --- CORRECTION APPLIQUÉE ICI ---
         async function setupFirebase() {
             try {
                 if (app) return;
                 
+                // Vérification du projectId pour éviter l'erreur
+                if (!firebaseConfig || !firebaseConfig.projectId) {
+                    throw new Error("La configuration Firebase est incomplète ou le projectId est manquant.");
+                }
+
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -188,11 +201,11 @@
                     if (user) {
                         userId = user.uid;
                         startDataListener();
-                        updateUserIdDisplay(userId); // Utiliser la fonction de mise à jour sécurisée
+                        updateUserIdDisplay(userId); 
                     } else {
                         userId = null;
                         state.observations = [];
-                        updateUserIdDisplay(null); // Utiliser la fonction de mise à jour sécurisée
+                        updateUserIdDisplay(null); 
                         if (state.currentView === 'catalogue') renderObservations([]);
                     }
                     renderApp(); // Initial render after auth
@@ -200,6 +213,7 @@
 
             } catch (error) {
                 console.error("Erreur de configuration Firebase ou d'authentification:", error);
+                // Afficher l'erreur directement pour l'utilisateur
                 showNotification(`Erreur Firebase: ${error.message}`, 'error');
             }
         }

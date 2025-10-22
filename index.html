@@ -7,11 +7,11 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script type="module">
-        // CORRECTION FINALE: Suppression de 'Clipboard' et des autres icônes problématiques.
-        // Seules les icônes nécessaires (Search, Plus, X) qui sont stables sont conservées.
+        // CORRECTION FINALE: Seules les icônes très stables sont conservées. 
+        // L'icône du rapport PDF a été remplacée par un SVG intégré dans le HTML.
         import { createIcons, Search, Plus, X } from 'https://unpkg.com/lucide@latest';
         createIcons({ icons: { Search, Plus, X } });
     </script>
@@ -118,7 +118,7 @@
                 case 'error':
                     bgColor = 'bg-red-100';
                     textColor = 'text-red-800';
-                    // FIX: Utilisation de l'icône 'x' déjà importée pour l'erreur.
+                    // Icône 'x' déjà importée
                     iconHtml = '<svg class="w-5 h-5" name="x"></svg>'; 
                     break;
                 case 'loading':
@@ -521,7 +521,7 @@
             <button id="generatePdfButton"
                 class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
                 title="Télécharger un rapport PDF des observations">
-                <!-- FIX: Remplacement de l'icône Lucide par un SVG intégré pour la stabilité -->
+                <!-- SVG Intégré (File/Document Icon) pour la stabilité -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
                 Générer Rapport PDF
             </button>

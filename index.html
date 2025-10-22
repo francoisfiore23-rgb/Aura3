@@ -31,7 +31,19 @@
             <p class="text-gray-600">Trouvez des activités structurées pour le développement des enfants autistes.</p>
         </header>
 
-        <!-- Zone de Filtres -->
+        <!-- NOUVELLE ZONE DE SÉLECTION DE PROFIL -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="flex-1">
+                <label for="profile-filter" class="block text-sm font-medium text-gray-700 mb-1">Sélectionner un Profil d'Enfant</label>
+                <select id="profile-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                    <option value="all">Tous les Enfants (Sans Filtrage de Profil)</option>
+                    <!-- Les options de profil seront remplies par JavaScript -->
+                </select>
+            </div>
+        </div>
+        <!-- FIN NOUVELLE ZONE -->
+
+        <!-- Zone de Filtres Thématiques/Structure -->
         <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
             <!-- Filtre par Catégorie Thématique -->
             <div class="flex-1">
@@ -71,41 +83,72 @@
 
     <script>
         // =========================================================================
-        //  ZONE DE CONTENU : Activités adaptées pour enfants autistes (TSA)
+        //  DONNÉES DES PROFILS ET DES ACTIVITÉS
         // =========================================================================
-        const activitiesData = [
-            // RÉGULATION SENSORIELLE
-            { id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation." },
-            { id: 2, name: "Bac Sensoriel Thématique", category: "Régulation", level: "Moyen", description: "Explorer des textures (riz, pâtes, eau) avec un thème précis (ex: 'ferme'). Nécessite supervision initiale." },
-            { id: 3, name: "Compression du Corps (Massage)", category: "Régulation", level: "Élevé", description: "Routine de pression profonde pour l'apport proprioceptif. Nécessite une séquence visuelle stricte." },
-            
-            // COMPÉTENCES SOCIALES ET ÉMOTIONNELLES
-            { id: 4, name: "Jeu de Cartes 'Émotions'", category: "Social", level: "Élevé", description: "Associer des visages à des étiquettes d'émotions. Routine d'apprentissage structurée." },
-            { id: 5, name: "L'Histoire Sociale du Matin", category: "Social", level: "Moyen", description: "Lecture d'une histoire courte décrivant une interaction sociale simple (ex: demander de l'aide)." },
-            { id: 6, name: "Jeu de Rôle Séquencé (Magasin)", category: "Social", level: "Élevé", description: "Suivre une série d'étapes visuelles pour simuler une transaction simple." },
-            
-            // DÉVELOPPEMENT MOTEUR (Fin et Global)
-            { id: 7, name: "Mosaïque de Perles à Enfiler", category: "Moteur", level: "Moyen", description: "Exercice de motricité fine pour améliorer la coordination œil-main. Résultat visuel immédiat." },
-            { id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale." },
-            
-            // INTÉRÊTS SPÉCIFIQUES
-            { id: 9, name: "Dictionnaire des Dinosaures", category: "Intérêt", level: "Moyen", description: "Organiser des fiches d'animaux (ou tout autre intérêt) par taille ou période. Activité de tri structurée." },
-            { id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition." },
-            { id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Avancé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple." },
-            
-            // NOUVELLES AJOUTÉES
-            { id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable." },
-            { id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice." },
-            { id: 14, name: "Lecture Rythmée", category: "Culture", level: "Moyen", description: "Lire un poème court avec un métronome ou un rythme marqué. Aide à la prosodie et au langage." },
+
+        /**
+         * Structure des profils pour la personnalisation.
+         * Chaque profil a des 'tags' correspondant aux activités recommandées.
+         */
+        const profilesData = [
+            { id: 1, name: "Lucas (3 ans) - Hypersensible Sonore", tags: ["Calme", "Proprioceptif", "Visuel"] },
+            { id: 2, name: "Sarah (7 ans) - Intérêt Répétitif Fort", tags: ["Répétition", "Logique", "Tri", "Séquence"] },
+            { id: 3, name: "Théo (5 ans) - Recherche Sensorielle (Moteur)", tags: ["Moteur", "Kinesthésique", "Proprioceptif"] },
         ];
 
+        /**
+         * La liste des activités a été enrichie d'une liste de 'tags_profil' pour faire le lien avec les profils.
+         */
+        const activitiesData = [
+            // RÉGULATION SENSORIELLE
+            { id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel"] },
+            { id: 2, name: "Bac Sensoriel Thématique", category: "Régulation", level: "Moyen", description: "Explorer des textures (riz, pâtes, eau) avec un thème précis (ex: 'ferme'). Nécessite supervision initiale.", tags_profil: ["Répétition", "Visuel"] },
+            { id: 3, name: "Compression du Corps (Massage)", category: "Régulation", level: "Élevé", description: "Routine de pression profonde pour l'apport proprioceptif. Nécessite une séquence visuelle stricte.", tags_profil: ["Proprioceptif", "Calme", "Séquence"] },
+            
+            // COMPÉTENCES SOCIALES ET ÉMOTIONNELLES
+            { id: 4, name: "Jeu de Cartes 'Émotions'", category: "Social", level: "Élevé", description: "Associer des visages à des étiquettes d'émotions. Routine d'apprentissage structurée.", tags_profil: ["Séquence", "Logique", "Visuel"] },
+            { id: 5, name: "L'Histoire Sociale du Matin", category: "Social", level: "Moyen", description: "Lecture d'une histoire courte décrivant une interaction sociale simple (ex: demander de l'aide).", tags_profil: ["Visuel"] },
+            { id: 6, name: "Jeu de Rôle Séquencé (Magasin)", category: "Social", level: "Élevé", description: "Suivre une série d'étapes visuelles pour simuler une transaction simple.", tags_profil: ["Séquence", "Logique"] },
+            
+            // DÉVELOPPEMENT MOTEUR (Fin et Global)
+            { id: 7, name: "Mosaïque de Perles à Enfiler", category: "Moteur", level: "Moyen", description: "Exercice de motricité fine pour améliorer la coordination œil-main. Résultat visuel immédiat.", tags_profil: ["Fin", "Répétition"] },
+            { id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique"] },
+            
+            // INTÉRÊTS SPÉCIFIQUES
+            { id: 9, name: "Dictionnaire des Dinosaures", category: "Intérêt", level: "Moyen", description: "Organiser des fiches d'animaux (ou tout autre intérêt) par taille ou période. Activité de tri structurée.", tags_profil: ["Tri", "Logique"] },
+            { id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur"] },
+            { id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Avancé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence"] },
+            
+            // NOUVELLES AJOUTÉES
+            { id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition"] },
+            { id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur"] },
+            { id: 14, name: "Lecture Rythmée", category: "Culture", level: "Moyen", description: "Lire un poème court avec un métronome ou un rythme marqué. Aide à la prosodie et au langage.", tags_profil: ["Séquence", "Répétition"] },
+        ];
+
+        // =========================================================================
+        //  LOGIQUE DE L'APPLICATION
+        // =========================================================================
         const activitiesGrid = document.getElementById('activities-grid');
         const categoryFilter = document.getElementById('category-filter');
         const levelFilter = document.getElementById('level-filter');
+        const profileFilter = document.getElementById('profile-filter'); // NOUVEAU
         const noResultsMessage = document.getElementById('no-results-message');
 
         /**
+         * Remplit le menu déroulant des profils.
+         */
+        function populateProfileFilter() {
+            profilesData.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile.id;
+                option.textContent = profile.name;
+                profileFilter.appendChild(option);
+            });
+        }
+
+        /**
          * Crée et retourne l'élément DOM pour une carte d'activité.
+         * (Le reste de cette fonction reste inchangé)
          * @param {object} activity - L'objet activité.
          * @returns {HTMLElement} La carte d'activité.
          */
@@ -128,8 +171,6 @@
 
         /**
          * Retourne les classes Tailwind pour styliser la pastille de catégorie.
-         * @param {string} category - Le nom de la catégorie.
-         * @returns {string} Les classes CSS.
          */
         function getCategoryStyle(category) {
             switch (category) {
@@ -143,7 +184,6 @@
 
         /**
          * Affiche un message simulant une routine détaillée pour l'activité.
-         * @param {number} id - L'ID de l'activité.
          */
         function showDetails(id) {
             const activity = activitiesData.find(a => a.id === id);
@@ -163,7 +203,7 @@
                         routine = `Routine type : Début (préparation) → Milieu (exécution) → Fin (rangement). Adaptez la séquence visuelle.`;
                 }
 
-                alert(`ROUTINE DÉTAILLÉE pour : ${activity.name}\n\nType de Structure: ${activity.level}\n\nDescription: ${activity.description}\n\nSÉQUENCE (Exemple de support visuel) :\n${routine}`);
+                alert(`ROUTINE DÉTAILLÉE pour : ${activity.name}\n\nTags Profils Associés: ${activity.tags_profil.join(', ')}\nType de Structure: ${activity.level}\n\nDescription: ${activity.description}\n\nSÉQUENCE (Exemple de support visuel) :\n${routine}`);
             }
         }
         
@@ -171,13 +211,31 @@
          * Filtre et affiche les activités.
          */
         function filterActivities() {
-            const selectedCategory = categoryFilter.value.split(' ')[0]; // Prend seulement le nom de la catégorie
-            const selectedLevel = levelFilter.value.split(' ')[0]; // Prend seulement le niveau
+            const selectedCategory = categoryFilter.value.split(' ')[0];
+            const selectedLevel = levelFilter.value.split(' ')[0];
+            const selectedProfileId = profileFilter.value; // NOUVEAU: ID du profil sélectionné
+
+            let requiredTags = [];
+            // Si un profil spécifique est sélectionné (pas 'all')
+            if (selectedProfileId !== 'all') {
+                const profile = profilesData.find(p => p.id === parseInt(selectedProfileId));
+                if (profile) {
+                    requiredTags = profile.tags;
+                }
+            }
 
             const filteredActivities = activitiesData.filter(activity => {
                 const categoryMatch = selectedCategory === 'all' || activity.category === selectedCategory;
                 const levelMatch = selectedLevel === 'all' || activity.level === selectedLevel;
-                return categoryMatch && levelMatch;
+                
+                // NOUVELLE LOGIQUE DE FILTRAGE PAR PROFIL
+                let profileMatch = true;
+                if (requiredTags.length > 0) {
+                    // Vérifie si l'activité a AU MOINS un tag du profil sélectionné
+                    profileMatch = activity.tags_profil.some(tag => requiredTags.includes(tag));
+                }
+
+                return categoryMatch && levelMatch && profileMatch;
             });
 
             // Vider la grille
@@ -197,8 +255,10 @@
         // Écouteurs d'événements pour les filtres
         categoryFilter.addEventListener('change', filterActivities);
         levelFilter.addEventListener('change', filterActivities);
+        profileFilter.addEventListener('change', filterActivities); // NOUVEAU
 
-        // Afficher toutes les activités au chargement
+        // Initialisation : Remplir le filtre des profils et afficher les activités
+        populateProfileFilter();
         filterActivities();
     </script>
 </body>

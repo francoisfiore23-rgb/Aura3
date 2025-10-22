@@ -10,17 +10,23 @@
         /* Configuration de la police Inter pour une meilleure lisibilité */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
+            background-color: #eef4f9; /* Fond général plus doux */
         }
         /* Style pour les cartes (cartes de shadow et transitions) */
         .activity-card {
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
+            border: 1px solid #e0e7ff; /* Bordure douce */
         }
         .activity-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 12px 20px rgba(126, 114, 218, 0.2); /* Ombre plus douce et colorée */
         }
+        /* Couleurs de fond des cartes au survol (personnalisées dans JS) */
+        .hover-reg:hover { background-color: #e0f2fe; } /* Blue pastel */
+        .hover-social:hover { background-color: #d1fae5; } /* Green pastel */
+        .hover-moteur:hover { background-color: #ffe4e6; } /* Pink pastel */
+        .hover-interet:hover { background-color: #f3e8ff; } /* Purple pastel */
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -31,8 +37,8 @@
             <p class="text-gray-600">Trouvez des activités structurées pour le développement des enfants autistes.</p>
         </header>
 
-        <!-- NOUVELLE ZONE DE SÉLECTION DE PROFIL -->
-        <div class="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+        <!-- NOUVELLE ZONE DE SÉLECTION DE PROFIL (Couleur Pastel) -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-purple-100 rounded-lg border border-purple-300 shadow-md">
             <div class="flex-1">
                 <label for="profile-filter" class="block text-sm font-medium text-gray-700 mb-1">Sélectionner un Profil d'Enfant</label>
                 <select id="profile-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm">
@@ -43,8 +49,8 @@
         </div>
         <!-- FIN NOUVELLE ZONE -->
 
-        <!-- Zone de Filtres Thématiques/Structure -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+        <!-- Zone de Filtres Thématiques/Structure (Couleur Pastel) -->
+        <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-100 rounded-lg border border-indigo-300 shadow-md">
             <!-- Filtre par Catégorie Thématique -->
             <div class="flex-1">
                 <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-1">Thème d'Activité</label>
@@ -148,13 +154,14 @@
 
         /**
          * Crée et retourne l'élément DOM pour une carte d'activité.
-         * (Le reste de cette fonction reste inchangé)
          * @param {object} activity - L'objet activité.
          * @returns {HTMLElement} La carte d'activité.
          */
         function createActivityCard(activity) {
             const card = document.createElement('div');
-            card.className = 'activity-card bg-white p-5 rounded-xl border border-gray-100 shadow-lg flex flex-col justify-between';
+            // Ajout de la classe de survol dynamique
+            const hoverClass = getCategoryHoverClass(activity.category); 
+            card.className = `activity-card bg-white p-5 rounded-xl border border-gray-100 shadow-lg flex flex-col justify-between ${hoverClass}`;
             card.innerHTML = `
                 <div>
                     <span class="inline-block text-xs font-semibold px-3 py-1 rounded-full ${getCategoryStyle(activity.category)} mb-3">${activity.category.split(' ')[0]}</span>
@@ -170,15 +177,37 @@
         }
 
         /**
-         * Retourne les classes Tailwind pour styliser la pastille de catégorie.
+         * Retourne les classes Tailwind pour styliser la pastille de catégorie avec des couleurs pastel douces.
+         * NOUVELLES COULEURS PASTEL
+         * @param {string} category - Le nom de la catégorie.
+         * @returns {string} Les classes CSS.
          */
         function getCategoryStyle(category) {
             switch (category) {
-                case 'Régulation': return 'bg-sky-100 text-sky-700';
-                case 'Social': return 'bg-emerald-100 text-emerald-700';
-                case 'Moteur': return 'bg-orange-100 text-orange-700';
-                case 'Intérêt': return 'bg-fuchsia-100 text-fuchsia-700';
+                // Couleurs plus douces (Blue/Cyan)
+                case 'Régulation': return 'bg-cyan-100 text-cyan-700';
+                // Couleurs plus douces (Green/Emerald)
+                case 'Social': return 'bg-emerald-100 text-emerald-700'; 
+                // Couleurs plus douces (Orange/Rose)
+                case 'Moteur': return 'bg-pink-100 text-pink-700'; 
+                // Couleurs plus douces (Purple/Fuchsia)
+                case 'Intérêt': return 'bg-purple-100 text-purple-700';
                 default: return 'bg-gray-100 text-gray-700';
+            }
+        }
+        
+        /**
+         * Retourne la classe CSS personnalisée pour l'effet de survol (hover) basé sur la catégorie.
+         * @param {string} category - Le nom de la catégorie.
+         * @returns {string} La classe CSS de survol.
+         */
+        function getCategoryHoverClass(category) {
+            switch (category) {
+                case 'Régulation': return 'hover-reg'; 
+                case 'Social': return 'hover-social';
+                case 'Moteur': return 'hover-moteur'; 
+                case 'Intérêt': return 'hover-interet'; 
+                default: return '';
             }
         }
 

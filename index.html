@@ -321,25 +321,60 @@
         }
 
         /**
-         * Analyse le texte libre des inputs, le met en minuscules et retourne un tableau de mots-clés uniques.
-         * Le séparateur est la virgule ou l'espace.
-         * @returns {Array<string>} Liste des mots-clés saisis par l'utilisateur.
+         * Analyse le texte libre des inputs et retourne un objet avec les mots-clés séparés par catégorie.
+         * Les mots-clés sont nettoyés, mis en minuscules et uniques.
+         * @returns {{attractions: Array<string>, calming: Array<string>, needs: Array<string>}}
          */
         function getKeywordsFromInput() {
-            const attractions = attractionsInput.value.toLowerCase();
-            const calming = calmingInput.value.toLowerCase();
-            const needs = needsInput.value.toLowerCase();
+            const processInput = (inputElement) => {
+                // Séparer par virgules, espaces ou nouvelles lignes
+                return inputElement.value.toLowerCase()
+                    .split(/[\s,]+/) 
+                    .map(kw => kw.trim())
+                    .filter(kw => kw.length > 2 && kw !== 'et'); // Filtrer les mots courts et courants comme 'et'
+            };
 
-            // Combiner les entrées, séparer par virgules/espaces et filtrer les chaînes vides
-            const rawKeywords = [...attractions.split(/[\s,]+/), ...calming.split(/[\s,]+/), ...needs.split(/[\s,]+/)];
+            return {
+                attractions: [...new Set(processInput(attractionsInput))],
+                calming: [...new Set(processInput(calmingInput))],
+                needs: [...new Set(processInput(needsInput))]
+            };
+        }
+
+        /**
+         * Calcule le score de pertinence d'une activité par rapport aux mots-clés de l'utilisateur.
+         * Le poids est donné par: Attractions (3) > Calming (2) > Needs (1).
+         * @param {object} activity - L'objet activité.
+         * @param {object} structuredKeywords - Mots-clés séparés (attractions, calming, needs).
+         * @returns {number} Le score de pertinence.
+         */
+        function calculateScore(activity, structuredKeywords) {
+            let score = 0;
+            const activityTags = activity.tags_profil.map(tag => tag.toLowerCase().trim());
             
-            // Nettoyer les mots-clés (retirer les espaces blancs, et s'assurer qu'ils ne sont pas vides et ont plus de 2 caractères)
-            const cleanedKeywords = rawKeywords
-                .map(kw => kw.trim())
-                .filter(kw => kw.length > 2);
-            
-            // Retourner uniquement les mots-clés uniques pour éviter la duplication
-            return [...new Set(cleanedKeywords)];
+            // Fonction utilitaire pour vérifier si un tag d'activité matche n'importe quel mot-clé utilisateur.
+            const hasMatch = (activityTags, userKeywords) => {
+                if (userKeywords.length === 0) return false;
+                return activityTags.some(activityTag => 
+                    userKeywords.some(kw => {
+                        // Correspondance partielle (ex: 'tri' match 'tris' ou 'triangulaire')
+                        return activityTag.includes(kw) || kw.includes(activityTag); 
+                    })
+                );
+            };
+
+            // Poids des catégories (priorité aux Intérêts forts et à la Régulation)
+            if (hasMatch(activityTags, structuredKeywords.attractions)) {
+                score += 3;
+            }
+            if (hasMatch(activityTags, structuredKeywords.calming)) {
+                score += 2;
+            }
+            if (hasMatch(activityTags, structuredKeywords.needs)) {
+                score += 1;
+            }
+
+            return score;
         }
 
         /**
@@ -401,48 +436,58 @@
         }
         
         /**
-         * Filtre et affiche les activités.
+         * Filtre, score et affiche les activités.
          */
         function filterActivities() {
             const selectedCategory = categoryFilter.value.split(' ')[0];
             const selectedLevel = levelFilter.value.split(' ')[0];
             
-            // 1. Récupérer les mots-clés de l'utilisateur
-            const userKeywords = getKeywordsFromInput();
+            // 1. Récupérer les mots-clés structurés de l'utilisateur
+            const structuredKeywords = getKeywordsFromInput();
+            // Vérifier si l'utilisateur a saisi au moins un mot-clé dans un des champs
+            const hasUserKeywords = structuredKeywords.attractions.length > 0 || structuredKeywords.calming.length > 0 || structuredKeywords.needs.length > 0;
 
-            const filteredActivities = activitiesData.filter(activity => {
-                const categoryMatch = selectedCategory === 'all' || activity.category === selectedCategory;
-                const levelMatch = selectedLevel === 'all' || activity.level === selectedLevel;
-                
-                // 2. LOGIQUE DE FILTRAGE PAR MOTS-CLÉS LIBRES
-                let profileMatch = true;
+            // 2. Filtrage (par catégorie/niveau) et Scoring (par mots-clés)
+            const scoredActivities = activitiesData
+                .map(activity => {
+                    const categoryMatch = selectedCategory === 'all' || activity.category === selectedCategory;
+                    const levelMatch = selectedLevel === 'all' || activity.level === selectedLevel;
+                    
+                    if (categoryMatch && levelMatch) {
+                        // Calculer le score uniquement si les filtres standards correspondent
+                        const score = calculateScore(activity, structuredKeywords);
+                        return { ...activity, score: score };
+                    }
+                    return { ...activity, score: -1 }; // Marquer comme non pertinent si les filtres standards ne correspondent pas
+                })
+                .filter(activity => {
+                    // Les activités qui n'ont pas matché les filtres standard sont déjà marquées avec score = -1
+                    if (activity.score === -1) return false;
 
-                if (userKeywords.length > 0) {
-                    // Si l'utilisateur a saisi des mots-clés, l'activité doit correspondre à AU MOINS UN mot-clé.
-                    profileMatch = activity.tags_profil.some(activityTag => {
-                        // Nettoyer et mettre en minuscule le tag de l'activité
-                        const activityTagLower = activityTag.toLowerCase().trim();
-                        
-                        // Vérifie si un mot-clé de l'utilisateur correspond exactement ou partiellement au tag de l'activité
-                        return userKeywords.some(kw => 
-                            activityTagLower.includes(kw) || kw.includes(activityTagLower)
-                        );
-                    });
+                    // Si l'utilisateur a saisi des mots-clés, on garde uniquement ceux avec un score > 0 (match de profil).
+                    if (hasUserKeywords) {
+                        return activity.score > 0;
+                    }
+                    // Si pas de mots-clés, on garde toutes les activités qui ont passé les filtres standard (score >= 0)
+                    return true; 
+                });
+            
+            // 3. Tri : Priorité au score (DESC), puis par nom (ASC, pour la stabilité)
+            scoredActivities.sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score; // Score DESC (les meilleurs scores sont en haut)
                 }
-                // Si l'utilisateur n'a saisi aucun mot-clé, profileMatch reste 'true' et le filtrage par profil est désactivé.
-
-                return categoryMatch && levelMatch && profileMatch;
+                return a.name.localeCompare(b.name); // Nom ASC
             });
 
-            // Vider la grille
+            // 4. Affichage
             activitiesGrid.innerHTML = '';
 
-            if (filteredActivities.length === 0) {
+            if (scoredActivities.length === 0) {
                 noResultsMessage.classList.remove('hidden');
             } else {
                 noResultsMessage.classList.add('hidden');
-                // Ajouter les cartes filtrées
-                filteredActivities.forEach(activity => {
+                scoredActivities.forEach(activity => {
                     activitiesGrid.appendChild(createActivityCard(activity));
                 });
             }

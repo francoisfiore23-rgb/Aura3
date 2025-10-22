@@ -37,6 +37,12 @@
             color: #4f46e5;
             font-weight: 600;
         }
+        /* Style pour rendre la navigation sticky */
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -47,9 +53,9 @@
             <p class="text-gray-600">Catalogue, Profilage et Journal d'Observations.</p>
         </header>
 
-        <!-- NAVIGATION PAR ONGLET -->
-        <nav class="flex border-b border-gray-200 mb-8">
-            <button id="tab-catalogue" onclick="switchTab('catalogue')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600 active">
+        <!-- NAVIGATION PAR ONGLET (Maintenant Sticky) -->
+        <nav class="sticky-nav flex border-b border-gray-200 bg-white pt-2 mb-8 -mx-6 px-6 shadow-md">
+            <button id="tab-catalogue" onclick="switchTab('catalogue')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600">
                 📚 Catalogue d'Activités
             </button>
             <button id="tab-observations" onclick="switchTab('observations')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600">
@@ -251,8 +257,6 @@
                         userId = crypto.randomUUID();
                         document.getElementById('auth-info').textContent = `Session Locale (ID temporaire: ${userId.substring(0, 8)}...)`;
                         isAuthReady = true;
-                        // On doit pouvoir enregistrer localement si possible, mais ici on gère le Firestore.
-                        // Sans auth réussi, l'accès à Firestore peut être restreint par les règles de sécurité.
                     }
                 }
             });
@@ -426,31 +430,24 @@
             }, 4000);
         }
 
-        // Initialisation de la date d'observation à la date du jour
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().slice(0, 10);
-            document.getElementById('obs-date').value = today;
-            // Démarrer l'écoute si l'authentification est déjà prête (cas peu probable mais safe)
-            if (isAuthReady) {
-                setupObservationListener();
-            }
-        });
-
-
         // =========================================================================
         //  LOGIQUE DE NAVIGATION PAR ONGLET
         // =========================================================================
         window.switchTab = function(tabName) {
+            console.log(`Switching to tab: ${tabName}`);
             const tabs = ['catalogue', 'observations'];
             tabs.forEach(tab => {
                 const view = document.getElementById(`view-${tab}`);
                 const button = document.getElementById(`tab-${tab}`);
-                if (tab === tabName) {
-                    view.classList.remove('hidden');
-                    button.classList.add('active');
-                } else {
-                    view.classList.add('hidden');
-                    button.classList.remove('active');
+                
+                if (view && button) {
+                    if (tab === tabName) {
+                        view.classList.remove('hidden');
+                        button.classList.add('active');
+                    } else {
+                        view.classList.add('hidden');
+                        button.classList.remove('active');
+                    }
                 }
             });
         }
@@ -690,8 +687,29 @@
         calmingInput.addEventListener('input', filterActivities);
         needsInput.addEventListener('input', filterActivities);
 
-        // Initialisation : Afficher le catalogue au chargement
-        filterActivities();
+        // Initialisation à l'événement DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM loaded. Initializing application state.");
+            
+            // 1. Initialiser la date d'observation
+            const today = new Date().toISOString().slice(0, 10);
+            const obsDateElement = document.getElementById('obs-date');
+            if (obsDateElement) {
+                obsDateElement.value = today;
+            }
+
+            // 2. Assurer l'affichage du bon onglet (Catalogue par défaut)
+            // Cela applique la classe 'active' au catalogue et masque les observations.
+            switchTab('catalogue'); 
+
+            // 3. Charger le catalogue et les filtres
+            filterActivities();
+
+            // 4. Démarrer l'écoute si l'authentification est déjà prête (si Firebase est rapide)
+            if (isAuthReady) {
+                setupObservationListener();
+            }
+        });
     </script>
 </body>
 </html>

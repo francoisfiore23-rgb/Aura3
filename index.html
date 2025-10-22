@@ -118,6 +118,26 @@
                 <path d="M6 6L18 18"></path>
             </svg>
         `;
+        const userIconSVG = (classes = 'w-5 h-5') => `
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        `;
+        // SVG inline pour l'icône Plus
+        const plusIconSVG = (classes = 'w-5 h-5 mr-2 text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M5 12h14"></path>
+                <path d="M12 5v14"></path>
+            </svg>
+        `;
+        // SVG inline pour l'icône Search
+        const searchIconSVG = `
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-indigo-500">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        `;
 
         // --- UTILITY FUNCTIONS (Notification, Firebase Setup, Data Handling) ---
 
@@ -261,13 +281,35 @@
 
             return `
                 <div class="p-4 md:p-8">
-                    <header class="text-center mb-10">
+                    <header class="text-center mb-6">
                         <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight">AuroreConnect Activités</h1>
                         <p class="text-gray-500 mt-2">Catalogue des activités pour le développement de l'enfant.</p>
                     </header>
                     
+                    <!-- Section Profil de l'Enfant (Nouveauté) -->
+                    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg mb-8 border border-indigo-100">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                ${userIconSVG('w-8 h-8 text-indigo-500 mr-4')}
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800">Profil de l'Enfant</h2>
+                                    <p class="text-sm text-gray-600">Âge : 4 ans | Dernier objectif : Socialisation</p>
+                                </div>
+                            </div>
+                            <button onclick="showNotification('Fonctionnalité en cours de développement.', 'info')"
+                                class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                                Mettre à jour le Profil
+                            </button>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-700 border-t pt-3">
+                            <p class="font-semibold">Objectif actuel suggéré :</p>
+                            <p class="text-indigo-600 font-medium">Développement de la motricité fine (pinces).</p>
+                        </div>
+                    </div>
+                    <!-- Fin Section Profil de l'Enfant -->
+                    
                     <!-- Barre de Catégories (Simplifiée) -->
-                    <div class="flex flex-wrap justify-center gap-2 p-3 bg-white rounded-xl shadow-md mb-8">
+                    <div class="flex flex-wrap justify-center gap-2 p-3 bg-white rounded-xl shadow-md mb-8 max-w-4xl mx-auto">
                         <span class="tag bg-indigo-100 text-indigo-700">Toutes</span>
                         <span class="tag bg-pink-100 text-pink-700">Cognitive</span>
                         <span class="tag bg-yellow-100 text-yellow-700">Créative</span>
@@ -277,7 +319,7 @@
                     </div>
 
                     <!-- Grille des Cartes d'Activités -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                         
                         <!-- Carte 1: Jeu de tri par couleurs (Cognitive) -->
                         <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
@@ -349,6 +391,81 @@
                             </div>
 
                             <button class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+
+                        <!-- Carte 4: Jeu de rôle (Sociale) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-green-100 text-green-700">Sociale</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 3 ${targetIconSVG('text-red-500')} | 20min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Jeu de rôle : Le magasin</h3>
+                            <p class="text-gray-600 text-sm mb-4">Activité pour simuler des interactions sociales, développer l'empathie et la communication.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Attribuer les rôles de client et de vendeur.</li>
+                                    <li>Encourager l'enfant à utiliser des phrases de politesse.</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+
+                        <!-- Carte 5: S'habiller seul (Autonomie) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-blue-100 text-blue-700">Autonomie</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 1 ${targetIconSVG('text-yellow-500')} | 15min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">S'habiller seul(e)</h3>
+                            <p class="text-gray-600 text-sm mb-4">Exercice de motricité fine et de séquence pour encourager l'indépendance vestimentaire.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Choisir des vêtements simples (élastiques, velcros).</li>
+                                    <li>Guider l'enfant étape par étape (enlever, puis mettre).</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+                        
+                        <!-- Carte 6: Parcours de motricité (Motricité) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-purple-100 text-purple-700">Motricité</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 2 ${targetIconSVG('text-yellow-600')} | 25min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Parcours de motricité globale</h3>
+                            <p class="text-gray-600 text-sm mb-4">Développement des habiletés motrices et de l'équilibre à travers un parcours physique simple.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Créer un chemin avec des coussins ou des lignes au sol.</li>
+                                    <li>Encourager l'enfant à sauter, marcher à cloche-pied, ramper.</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
                                 ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
                                 Commencer l'Activité
                             </button>

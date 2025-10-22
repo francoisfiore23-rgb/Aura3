@@ -3,24 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application de Suivi d'Observations</title>
+    <title>AuroreConnect - Application Unifiée</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script type="module">
-        // CORRECTION FINALE: Seules les icônes très stables sont conservées. 
-        // L'icône du rapport PDF a été remplacée par un SVG intégré dans le HTML.
-        import { createIcons, Search, Plus, X } from 'https://unpkg.com/lucide@latest';
-        createIcons({ icons: { Search, Plus, X } });
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons IMPORTATION RETIRÉE pour éviter les erreurs de SyntaxError répétitives -->
+    
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
         }
-        /* Custom styles for the PDF content to ensure clean printing */
+        /* Styles spécifiques au rapport PDF */
         #report-content {
             background-color: #ffffff;
             padding: 20px;
@@ -28,42 +24,47 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
         .observation-card {
-            page-break-inside: avoid; /* Helps keep observation cards together */
+            page-break-inside: avoid;
             background-color: #fff;
             border: 1px solid #e2e8f0;
             margin-bottom: 12px;
             padding: 16px;
             border-radius: 8px;
         }
-        /* Style for the notification box */
+        /* Styles pour la navigation */
+        .nav-link.active {
+            font-weight: 700;
+            border-bottom: 3px solid #4f46e5; /* Indigo */
+            color: #4f46e5;
+        }
+        /* Notification & Loader styles (maintenus) */
         #notification-box {
-            position: fixed;
-            top: 1.5rem;
-            right: 1.5rem;
-            max-width: 350px;
-            z-index: 1000;
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-            transform: translateX(100%);
-            opacity: 0;
+            position: fixed; top: 1.5rem; right: 1.5rem; max-width: 350px; z-index: 1000;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out; transform: translateX(100%); opacity: 0;
         }
-        #notification-box.show {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        /* Spinner for loading state */
+        #notification-box.show { transform: translateX(0); opacity: 1; }
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%;
+            width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px;
         }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Styles des cartes d'activité (similaires à l'image fournie) */
+        .activity-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+        .activity-card:hover {
+            transform: translateY(-4px);
+        }
+        .tag {
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
     </style>
 
@@ -75,86 +76,83 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* mock config */ };
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // --- APPLICATION STATE & DB SETUP ---
+        // --- GLOBAL APP STATE & DB SETUP ---
         let app = null;
         let db = null;
         let auth = null;
         let userId = null;
         let unsubscribe = null;
         
-        // Log level for debugging Firestore
-        setLogLevel('Debug');
-
+        let state = {
+            currentView: 'activites', // Démarrer sur la page initiale
+            observations: []
+        };
+        
+        setLogLevel('Debug'); // Log level for debugging Firestore
 
         /**
-         * Utility to display temporary notifications (replaces alert()).
-         * @param {string} message The message to display.
-         * @param {'success' | 'error' | 'loading'} type The type of notification.
+         * Nouvelle fonction pour mettre à jour l'ID utilisateur de manière sécurisée.
          */
+        function updateUserIdDisplay(id) {
+            const displayElement = document.getElementById('user-id-display');
+            if (displayElement) {
+                if (id) {
+                    displayElement.textContent = `ID Utilisateur: ${id}`;
+                } else {
+                    displayElement.textContent = 'ID Utilisateur: Non authentifié';
+                }
+            }
+        }
+        
+        // --- SVG DEFINITIONS (pour remplacer les imports Lucide instables) ---
+        const xIconSVG = (classes = 'w-5 h-5') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M18 6L6 18"></path>
+                <path d="M6 6L18 18"></path>
+            </svg>
+        `;
+
+        // --- UTILITY FUNCTIONS (Notification, Firebase Setup, Data Handling) ---
+
         function showNotification(message, type = 'success') {
             const box = document.getElementById('notification-box');
             const iconContainer = document.getElementById('notification-icon');
             const messageElement = document.getElementById('notification-message');
             
-            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100');
+            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show');
             box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800');
             iconContainer.innerHTML = '';
             
             let bgColor, textColor, iconHtml;
 
             switch (type) {
-                case 'success':
-                    bgColor = 'bg-green-100';
-                    textColor = 'text-green-800';
-                    iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-                    break;
-                case 'error':
-                    bgColor = 'bg-red-100';
-                    textColor = 'text-red-800';
-                    // Icône 'x' déjà importée
-                    iconHtml = '<svg class="w-5 h-5" name="x"></svg>'; 
-                    break;
-                case 'loading':
-                    bgColor = 'bg-blue-100';
-                    textColor = 'text-blue-800';
-                    iconHtml = '<div class="loader"></div>';
-                    break;
-                default:
-                    bgColor = 'bg-gray-100';
-                    textColor = 'text-gray-800';
-                    iconHtml = '';
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'; break;
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-800'; iconHtml = xIconSVG('w-5 h-5'); break;
+                case 'loading': bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; iconHtml = '<div class="loader"></div>'; break;
+                default: bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; iconHtml = '';
             }
             
             box.classList.add(bgColor, textColor);
             iconContainer.innerHTML = iconHtml;
             messageElement.textContent = message;
 
-            // Show the box
             box.classList.add('show');
             
-            // Hide after 5 seconds, unless it's a loading message
             if (type !== 'loading') {
-                setTimeout(() => {
-                    box.classList.remove('show');
-                }, 5000);
-            } else {
-                // If it's a loading message, we rely on the calling function to hide it
+                setTimeout(() => { box.classList.remove('show'); }, 5000);
             }
         }
 
-        /**
-         * Function to set up Firebase and Authentication.
-         */
         async function setupFirebase() {
             try {
-                if (app) return; // Prevent double initialization
+                if (app) return;
                 
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
@@ -169,17 +167,15 @@
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
-                        // Start listening to data only after auth is confirmed
                         startDataListener();
-                        // Display User ID on UI
-                        document.getElementById('user-id-display').textContent = `ID Utilisateur: ${userId}`;
+                        updateUserIdDisplay(userId); // Utiliser la fonction de mise à jour sécurisée
                     } else {
                         userId = null;
-                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: Non authentifié';
-                        renderObservations([]); // Clear observations if auth fails
+                        state.observations = [];
+                        updateUserIdDisplay(null); // Utiliser la fonction de mise à jour sécurisée
+                        if (state.currentView === 'catalogue') renderObservations([]);
                     }
-                    // Attach event listeners for the new button
-                    document.getElementById('generatePdfButton').addEventListener('click', generatePdfReport);
+                    renderApp(); // Initial render after auth
                 });
 
             } catch (error) {
@@ -188,26 +184,18 @@
             }
         }
 
-        /**
-         * Gets the collection reference path for public data.
-         * Using public collection path as this is a collaborative app.
-         */
         function getCollectionRef() {
             if (!db || !userId) return null;
             return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
         }
 
-        /**
-         * Starts the real-time listener for observations.
-         */
         function startDataListener() {
             if (unsubscribe) {
-                unsubscribe(); // Stop previous listener if any
+                unsubscribe();
             }
             const colRef = getCollectionRef();
             if (!colRef) return;
 
-            // Query: all observations, sorted by creation date (newest first)
             const q = query(colRef, orderBy('createdAt', 'desc'));
 
             unsubscribe = onSnapshot(q, (snapshot) => {
@@ -215,32 +203,283 @@
                 snapshot.forEach(doc => {
                     observations.push({ id: doc.id, ...doc.data() });
                 });
-                renderObservations(observations);
+                state.observations = observations;
+                if (state.currentView === 'catalogue') {
+                    renderObservations(observations);
+                }
             }, (error) => {
                 console.error("Erreur de l'écouteur Firestore:", error);
                 showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
             });
         }
 
+        // --- VIEW RENDERING LOGIC ---
+
         /**
-         * Renders the list of observations into the DOM.
-         * @param {Array<Object>} observations Array of observation objects.
+         * Renders the current view based on the state.
          */
+        function renderApp() {
+            const mainContent = document.getElementById('main-content-container');
+            if (!mainContent) return;
+
+            if (state.currentView === 'activites') {
+                mainContent.innerHTML = renderActivitiesView();
+            } else { // 'catalogue'
+                mainContent.innerHTML = renderCatalogueView();
+                attachCatalogueListeners();
+                // Assurez-vous que l'ID utilisateur s'affiche correctement après le rendu de la vue Catalogue
+                updateUserIdDisplay(userId); 
+                renderObservations(state.observations);
+            }
+            updateNavigationView();
+        }
+
+        /**
+         * Updates the active class on the navigation links.
+         */
+        function updateNavigationView() {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.getElementById(`nav-${state.currentView}`);
+            if (activeLink) activeLink.classList.add('active');
+        }
+
+        // ==========================================================
+        // === VUE 1 : ACTIVITÉS AURORECONNECT (Page Initiale)    ===
+        // ==========================================================
+
+        function renderActivitiesView() {
+            // SVG inline pour l'icône Target (Cible)
+            const targetIconSVG = (levelColor) => `
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 ml-1 ${levelColor}">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="6"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+            `;
+
+            return `
+                <div class="p-4 md:p-8">
+                    <header class="text-center mb-10">
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight">AuroreConnect Activités</h1>
+                        <p class="text-gray-500 mt-2">Catalogue des activités pour le développement de l'enfant.</p>
+                    </header>
+                    
+                    <!-- Barre de Catégories (Simplifiée) -->
+                    <div class="flex flex-wrap justify-center gap-2 p-3 bg-white rounded-xl shadow-md mb-8">
+                        <span class="tag bg-indigo-100 text-indigo-700">Toutes</span>
+                        <span class="tag bg-pink-100 text-pink-700">Cognitive</span>
+                        <span class="tag bg-yellow-100 text-yellow-700">Créative</span>
+                        <span class="tag bg-green-100 text-green-700">Sociale</span>
+                        <span class="tag bg-blue-100 text-blue-700">Autonomie</span>
+                        <span class="tag bg-purple-100 text-purple-700">Motricité</span>
+                    </div>
+
+                    <!-- Grille des Cartes d'Activités -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Carte 1: Jeu de tri par couleurs (Cognitive) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-pink-100 text-pink-700">Cognitive</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 1 ${targetIconSVG('text-yellow-500')} | 10min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Jeu de tri par couleurs</h3>
+                            <p class="text-gray-600 text-sm mb-4">Activité de classification pour développer les capacités d'organisation et de reconnaissance des couleurs.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Préparez des objets de différentes couleurs.</li>
+                                    <li>Demandez à l'enfant de trier par couleur dans des bacs séparés.</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+
+                        <!-- Carte 2: Séquence d'images (Cognitive) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-pink-100 text-pink-700">Cognitive</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 2 ${targetIconSVG('text-yellow-600')} | 15min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Séquence d'images</h3>
+                            <p class="text-gray-600 text-sm mb-4">Exercice de mise en ordre chronologique d'images pour développer la logique séquentielle et la compréhension temporelle.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Présentez 3-4 images dans le désordre.</li>
+                                    <li>Demandez à l'enfant de les remettre dans l'ordre logique.</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+                        
+                        <!-- Carte 3: Construction libre (Créative) -->
+                        <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="tag bg-yellow-100 text-yellow-700">Créative</div>
+                                <span class="text-sm font-medium text-gray-500 flex items-center">
+                                    Niveau 2 ${targetIconSVG('text-yellow-600')} | 30min
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Construction libre</h3>
+                            <p class="text-gray-600 text-sm mb-4">Expression créative à travers la construction pour développer l'imagination et la motricité fine.</p>
+
+                            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                                <p class="font-semibold text-gray-700">Instructions:</p>
+                                <ul class="list-disc list-inside text-gray-600 ml-2 mt-1 space-y-1">
+                                    <li>Fournir des blocs de différentes tailles.</li>
+                                    <li>Laisser l'enfant construire ce qu'il souhaite sans directive.</li>
+                                </ul>
+                            </div>
+
+                            <button class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-lg transition duration-150 flex justify-center items-center">
+                                ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                                Commencer l'Activité
+                            </button>
+                        </div>
+                        
+                    </div>
+                </div>
+            `;
+        }
+
+
+        // ==========================================================
+        // === VUE 2 : CATALOGUE D'OBSERVATIONS (Base de Données) ===
+        // ==========================================================
+
+        function renderCatalogueView() {
+            // SVG inline pour l'icône Plus
+            const plusIconSVG = (classes = 'w-5 h-5 mr-2 text-indigo-500') => `
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5v14"></path>
+                </svg>
+            `;
+            // SVG inline pour l'icône Search
+            const searchIconSVG = `
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-indigo-500">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            `;
+            
+            return `
+                <div class="max-w-4xl mx-auto p-4 md:p-8">
+                    <header class="text-center mb-8">
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">Catalogue d'Observations</h1>
+                        <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: Non authentifié'}</p>
+                    </header>
+
+                    <!-- Formulaire d'ajout d'observation -->
+                    <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8">
+                        <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
+                            ${plusIconSVG()}
+                            Ajouter une Nouvelle Observation
+                        </h2>
+                        <form id="observation-form" class="space-y-4">
+                            <div>
+                                <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
+                                <input type="text" id="title" required
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
+                                <select id="category"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="Nature">Nature</option>
+                                    <option value="Environnement">Environnement</option>
+                                    <option value="Comportement">Comportement</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
+                                <textarea id="description" rows="4" required
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
+                                ${plusIconSVG('w-5 h-5 mr-2 text-white')}
+                                Enregistrer l'Observation
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Liste des observations et bouton de rapport -->
+                    <div class="mb-4 flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-700 flex items-center">
+                            ${searchIconSVG}
+                            Liste des Observations
+                        </h2>
+                        <button id="generatePdfButton"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
+                            title="Télécharger un rapport PDF des observations">
+                            <!-- SVG Intégré (Icone de document) pour la stabilité -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
+                            Générer Rapport PDF
+                        </button>
+                    </div>
+                    
+                    <!-- Contenu qui sera capturé pour le PDF -->
+                    <div id="report-content">
+                        <div id="observations-list" class="space-y-3">
+                            <!-- Les observations seront insérées ici par JavaScript -->
+                            <p class="text-center text-gray-500 py-8">Chargement des observations...</p>
+                        </div>
+                    </div>
+                    <!-- Fin du contenu à capturer -->
+                </div>
+            `;
+        }
+
+        /**
+         * Re-attaches necessary event listeners for the Catalogue View.
+         */
+        function attachCatalogueListeners() {
+            // Wait for the elements to be in the DOM
+            setTimeout(() => {
+                const form = document.getElementById('observation-form');
+                if (form) form.addEventListener('submit', handleSubmit);
+
+                const pdfButton = document.getElementById('generatePdfButton');
+                if (pdfButton) pdfButton.addEventListener('click', generatePdfReport);
+
+                // Note: deleteObservation is exposed globally and works via inline onclick.
+            }, 0);
+        }
+
+        // --- CATALOGUE DATA MANIPULATION FUNCTIONS (maintained) ---
+
         function renderObservations(observations) {
+            // Check if the current view is 'catalogue' before rendering observations
+            if (state.currentView !== 'catalogue') return; 
+            
             const listContainer = document.getElementById('observations-list');
             if (!listContainer) return;
             
             if (observations.length === 0) {
-                listContainer.innerHTML = `
-                    <p class="text-center text-gray-500 py-8">
-                        Aucune observation enregistrée. Utilisez le formulaire ci-dessus pour en ajouter une.
-                    </p>
-                `;
+                listContainer.innerHTML = `<p class="text-center text-gray-500 py-8">Aucune observation enregistrée.</p>`;
                 return;
             }
 
             listContainer.innerHTML = observations.map(obs => {
-                // Format the timestamp (handling potential null/undefined for new docs)
                 const dateStr = obs.createdAt?.toDate ? 
                     obs.createdAt.toDate().toLocaleDateString('fr-FR') : 
                     'En cours...';
@@ -257,7 +496,7 @@
                             <button onclick="window.deleteObservation('${obs.id}')"
                                 class="text-red-500 hover:text-red-700 transition duration-150 p-1 rounded-full hover:bg-red-50" 
                                 title="Supprimer">
-                                <svg class="w-5 h-5" name="x"></svg>
+                                ${xIconSVG('w-5 h-5')}
                             </button>
                         </div>
                     </div>
@@ -265,10 +504,6 @@
             }).join('');
         }
 
-        /**
-         * Handles the form submission to add a new observation.
-         * @param {Event} event The form submission event.
-         */
         async function handleSubmit(event) {
             event.preventDefault();
             if (!userId) {
@@ -292,14 +527,9 @@
 
             try {
                 await addDoc(colRef, {
-                    title,
-                    category,
-                    description,
-                    creatorId: userId,
-                    createdAt: serverTimestamp()
+                    title, category, description, creatorId: userId, createdAt: serverTimestamp()
                 });
 
-                // Clear the form
                 document.getElementById('observation-form').reset();
                 showNotification("Observation ajoutée avec succès !", 'success');
 
@@ -309,20 +539,16 @@
             }
         }
 
-        /**
-         * Deletes an observation by ID.
-         * @param {string} docId The ID of the document to delete.
-         */
         async function deleteObservation(docId) {
             if (!userId) return; 
 
-            const confirmDelete = true; // Use a simple boolean check in place of window.confirm()
+            // Remplacer window.confirm() par une simple vérification booléenne.
+            const confirmDelete = true; 
             if (!confirmDelete) return;
 
             showNotification("Suppression de l'observation...", 'loading');
 
             try {
-                // Path to the document
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'observations', docId);
                 await deleteDoc(docRef);
                 showNotification("Observation supprimée avec succès.", 'success');
@@ -331,25 +557,18 @@
                 showNotification(`Échec de la suppression: ${error.message}`, 'error');
             }
         }
-
-        // Expose functions to the window so they can be called from inline HTML (buttons)
         window.deleteObservation = deleteObservation;
 
-        // ==========================================================
-        // === NOUVELLE FONCTION POUR LA GÉNÉRATION DE RAPPORT PDF ===
-        // ==========================================================
-        /**
-         * Generates a multi-page PDF report from the #report-content area.
-         */
+
+        // --- PDF GENERATION FUNCTION (maintained) ---
+
         async function generatePdfReport() {
             const reportArea = document.getElementById('report-content');
             if (!reportArea) {
-                console.error("Zone de contenu du rapport introuvable.");
                 showNotification("Erreur : Contenu du rapport introuvable.", 'error');
                 return;
             }
 
-            // Temporarily change button to show loading
             const button = document.getElementById('generatePdfButton');
             button.disabled = true;
             const originalButtonText = button.innerHTML;
@@ -357,74 +576,40 @@
 
             showNotification("Génération du rapport PDF en cours...", 'loading');
             
-            // Use a timeout to ensure the loading message and state update before heavy canvas work
             setTimeout(async () => {
                 try {
-                    // 1. Capture the HTML content as a canvas image
-                    const canvas = await html2canvas(reportArea, {
-                        scale: 3, // Increase scale for better resolution (3x)
-                        useCORS: true,
-                        logging: false,
-                        backgroundColor: '#f7f9fb', // Use the body background color
-                        scrollY: -window.scrollY // Ensure capture starts from the top
-                    });
-
+                    const canvas = await html2canvas(reportArea, { scale: 3, useCORS: true, logging: false, backgroundColor: '#f7f9fb', scrollY: -window.scrollY });
                     const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, millimeters, A4 size
-
+                    const pdf = new jsPDF('p', 'mm', 'a4');
                     const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm for A4
-
-                    // Calculate image dimensions to fit PDF page width
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
                     const imgHeight = canvas.height * pdfWidth / canvas.width;
-                    const imgData = canvas.toDataURL('image/jpeg', 1.0); // Use JPEG for smaller file size
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
 
-                    let currentY = 0; // Current Y position of the image slice
+                    let currentY = 0;
                     let pageIndex = 0;
-                    const pageContentHeight = pdfHeight - 20; // Leave 10mm top/bottom margin
+                    const pageContentHeight = pdfHeight - 20; 
 
-                    // Loop to add content to multiple pages if needed
                     while (currentY < imgHeight) {
-                        if (pageIndex > 0) {
-                            pdf.addPage();
-                        }
+                        if (pageIndex > 0) { pdf.addPage(); }
                         
-                        // Add header/title only on the first page
                         if (pageIndex === 0) {
-                            pdf.setFontSize(16);
-                            pdf.setTextColor(55, 65, 81); // gray-700
+                            pdf.setFontSize(16); pdf.setTextColor(55, 65, 81);
                             pdf.text("Rapport d'Observations", pdfWidth / 2, 10, { align: 'center' });
-                            pdf.setFontSize(10);
-                            pdf.setTextColor(107, 114, 128); // gray-500
+                            pdf.setFontSize(10); pdf.setTextColor(107, 114, 128);
                             const date = new Date().toLocaleDateString('fr-FR');
                             pdf.text(`Généré le: ${date}`, pdfWidth / 2, 18, { align: 'center' });
-                            // Start drawing content after header
                             currentY = 25; 
                         }
 
-                        // Determine the height of the current slice to fit the PDF page
-                        // (imgHeight - currentY) is the remaining height of the image content
                         const sliceHeight = Math.min(imgHeight - currentY, pageContentHeight);
-
-                        // Calculate the Y offset for the image drawing
-                        // We need to move the image *up* by the amount of content already drawn (currentY)
                         const yOffset = -currentY;
                         
-                        // Add image to PDF
                         pdf.addImage(
-                            imgData, 
-                            'JPEG', 
-                            0, // X position (start of page)
-                            10, // Y position (10mm margin from top)
-                            pdfWidth, // Width (full PDF width)
-                            imgHeight, // Height (full image height)
-                            null, // alias
-                            'FAST', // compression
-                            0, // rotation
-                            yOffset * (pdfWidth / canvas.width) + 10 // Y position offset to slice the image
+                            imgData, 'JPEG', 0, 10, pdfWidth, imgHeight, null, 'FAST', 0, 
+                            yOffset * (pdfWidth / canvas.width) + 10
                         );
                         
-                        // Update currentY for the next page
                         currentY += sliceHeight;
                         pageIndex++;
                     }
@@ -432,11 +617,7 @@
                     const date = new Date().toLocaleDateString('fr-FR');
                     const title = `Rapport_Observations_${date.replace(/\//g, '-')}`;
 
-                    pdf.setProperties({
-                        title: title,
-                        subject: 'Rapport généré par l\'application d\'observations',
-                        author: auth.currentUser?.email || 'Utilisateur anonyme',
-                    });
+                    pdf.setProperties({ title: title, subject: 'Rapport généré par l\'application d\'observations', author: auth.currentUser?.email || 'Utilisateur anonyme' });
 
                     pdf.save(title + '.pdf');
                     showNotification("Rapport PDF généré et téléchargé avec succès !", 'success');
@@ -445,23 +626,26 @@
                     console.error("Erreur lors de la génération du PDF:", error);
                     showNotification(`Échec de la génération du PDF: ${error.message}`, 'error');
                 } finally {
-                    // Restore button state
                     button.innerHTML = originalButtonText;
                     button.disabled = false;
                 }
-            }, 50); // Small delay to let UI update
+            }, 50);
         }
         window.generatePdfReport = generatePdfReport;
+        window.switchView = (viewName) => { 
+            state.currentView = viewName; 
+            renderApp(); 
+        };
 
-        // Initialize on load
+        // --- INITIALIZATION ---
         window.onload = () => {
             setupFirebase();
-            document.getElementById('observation-form').addEventListener('submit', handleSubmit);
+            // Le rendu initial se fait après l'authentification dans onAuthStateChanged
         };
     </script>
 </head>
 
-<body class="p-4 md:p-8">
+<body class="p-0">
     
     <!-- Notification Box -->
     <div id="notification-box" role="alert" class="rounded-lg border-l-4 p-4 shadow-lg flex items-center">
@@ -470,72 +654,35 @@
             <p id="notification-message" class="text-sm font-medium"></p>
         </div>
     </div>
-    
-    <div class="max-w-4xl mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">Catalogue d'Observations</h1>
-            <p id="user-id-display" class="text-xs text-gray-500 mt-1"></p>
-        </header>
 
-        <!-- Formulaire d'ajout d'observation -->
-        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8">
-            <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-indigo-500" name="plus"></svg>
-                Ajouter une Nouvelle Observation
-            </h2>
-            <form id="observation-form" class="space-y-4">
-                <div>
-                    <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
-                    <input type="text" id="title" required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo/Title -->
+                <div class="flex-shrink-0">
+                    <span class="text-2xl font-extrabold text-gray-900">Aurore<span class="text-indigo-600">Connect</span></span>
                 </div>
-                <div>
-                    <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
-                    <select id="category"
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="Nature">Nature</option>
-                        <option value="Environnement">Environnement</option>
-                        <option value="Comportement">Comportement</option>
-                        <option value="Autre">Autre</option>
-                    </select>
+                <!-- Navigation Links -->
+                <div class="flex space-x-6">
+                    <a href="#" id="nav-activites" onclick="switchView('activites')"
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
+                        Activités
+                    </a>
+                    <a href="#" id="nav-catalogue" onclick="switchView('catalogue')"
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
+                        Catalogue d'Observations
+                    </a>
                 </div>
-                <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
-                    <textarea id="description" rows="4" required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-                </div>
-                <button type="submit"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
-                    <svg class="w-5 h-5 mr-2" name="plus"></svg>
-                    Enregistrer l'Observation
-                </button>
-            </form>
-        </div>
-
-        <!-- Liste des observations et bouton de rapport -->
-        <div class="mb-4 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-gray-700 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-indigo-500" name="search"></svg>
-                Liste des Observations
-            </h2>
-            <button id="generatePdfButton"
-                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
-                title="Télécharger un rapport PDF des observations">
-                <!-- SVG Intégré (File/Document Icon) pour la stabilité -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
-                Générer Rapport PDF
-            </button>
-        </div>
-        
-        <!-- Contenu qui sera capturé pour le PDF -->
-        <div id="report-content">
-            <div id="observations-list" class="space-y-3">
-                <!-- Les observations seront insérées ici par JavaScript -->
-                <p class="text-center text-gray-500 py-8">Chargement des observations...</p>
             </div>
         </div>
-        <!-- Fin du contenu à capturer -->
-        
+    </nav>
+    
+    <!-- Main Content Container (Controlled by JavaScript) -->
+    <div id="main-content-container" class="max-w-7xl mx-auto">
+        <!-- Contenu dynamique Activités ou Catalogue sera chargé ici -->
+        <p class="text-center text-gray-500 py-12">Initialisation de l'application...</p>
     </div>
+
 </body>
 </html>

@@ -42,6 +42,7 @@
             <h2 class="text-xl font-bold text-purple-800 border-b border-purple-300 pb-2 mb-2">Décrire le Profil de l'Enfant (Saisie Libre)</h2>
             <p class="text-sm text-purple-700 mb-2">
                 Utilisez des mots-clés séparés par des virgules (ex: "eau, sauter, trains") pour affiner les recommandations d'activités en fonction des besoins de votre enfant.
+                <span class="font-semibold text-purple-900">(Le système gère maintenant les synonymes : ex. 'lourd' inclut 'proprioceptif'.)</span>
             </p>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -74,6 +75,8 @@
                     <option value="Intérêt">🧠 Intérêts Spécifiques</option>
                     <option value="Technologie">💻 Technologie</option>
                     <option value="Culture">📚 Culture</option>
+                    <option value="Créatif">🎨 Créatif/Arts</option>
+                    <option value="Pratique">🔪 Pratique/Cuisine</option>
                 </select>
             </div>
 
@@ -103,6 +106,40 @@
 
     <script>
         // =========================================================================
+        //  CARTE DES SYNONYMES (Pour un profilage plus efficace)
+        // =========================================================================
+        /**
+         * Mapping des mots-clés utilisateurs vers des synonymes ou concepts associés.
+         * Le système utilise ce map pour élargir la recherche à partir du mot saisi par l'utilisateur.
+         */
+        const SYNONYM_MAP = {
+            // Moteur / Kinesthésique
+            "fin": ["motricité fine", "doigts", "perles", "pinces"],
+            "fine": ["motricité fine", "doigts", "perles", "pinces"],
+            "global": ["motricité globale", "courir", "sauter", "ramper"],
+            "kinesthésique": ["mouvement", "bouger", "sauter", "courir", "ramper"],
+            "proprioceptif": ["lourd", "pression", "massage", "serrer", "compression"],
+            // Régulation / Sensoriel
+            "eau": ["aquatique", "bulles", "lavage", "savon"],
+            "calme": ["détente", "silence", "paix", "doux", "apaisement"],
+            "bruits doux": ["calme", "sonore", "silence", "écoute"],
+            "textures": ["sensoriel", "tactile", "toucher", "visqueux"],
+            // Logique / Routine
+            "séquence": ["routine", "étapes", "logique", "ordonner", "suivre"],
+            "répétition": ["rituel", "routine", "répéter", "circulaire"],
+            "tri": ["classer", "catégoriser", "ordonner"],
+            // Social / Communication
+            "interagir": ["social", "communication", "jeu de rôle", "partager"],
+            "émotions": ["sentiments", "social", "visages", "humeur"],
+            // Intérêts
+            "blocs": ["construction", "lego", "duplo"],
+            "trains": ["rail", "locomotive"],
+            "dinosaures": ["dino", "fossiles"],
+            "musique": ["rythme", "tambour", "sonore", "chanter"],
+            "cuisine": ["mélanger", "recette", "nourriture", "préparer"],
+        };
+
+        // =========================================================================
         //  DONNÉES DES ACTIVITÉS
         // =========================================================================
 
@@ -113,7 +150,7 @@
         const activitiesData = [
             // RÉGULATION SENSORIELLE
             { 
-                id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel", "Sonore", "solitude"],
+                id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel", "Sonore", "solitude", "bruits doux"],
                 routine_steps: [
                     { text: "Mettre les écouteurs (isolation sonore).", visual: "🎧 Écouteurs" },
                     { text: "S'asseoir sur le sac de haricots.", visual: "🛋️ Sac de haricots" },
@@ -180,7 +217,7 @@
                 ]
             },
             { 
-                id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique", "sauter", "courir", "ramper"],
+                id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique", "sauter", "courir", "ramper", "global"],
                 routine_steps: [
                     { text: "Passer sous un tunnel ou un drap.", visual: " Crawling" },
                     { text: "Marcher sur une ligne de ruban adhésif.", visual: "🚶 Marcher" },
@@ -200,7 +237,7 @@
                 ]
             },
             { 
-                id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur", "construction", "Lego", "Duplo"],
+                id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur", "construction", "Lego", "Duplo", "blocs"],
                 routine_steps: [
                     { text: "Choisir les blocs (même couleur si besoin de routine).", visual: "🧱 Choisir blocs" },
                     { text: "Empiler les blocs jusqu'à épuisement.", visual: "🗼 Empiler" },
@@ -209,7 +246,7 @@
                 ]
             },
             { 
-                id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Avancé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence", "programmation", "technologie", "blocs"],
+                id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Élevé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence", "programmation", "technologie", "blocs"],
                 routine_steps: [
                     { text: "Choisir un personnage et un arrière-plan.", visual: "💻 Écran" },
                     { text: "Ajouter le bloc 'Avancer' (3 fois).", visual: "➡️ Avancer" },
@@ -218,9 +255,9 @@
                 ]
             },
             
-            // NOUVELLES AJOUTÉES
+            // AJOUTS PRÉCÉDENTS
             { 
-                id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition", "eau", "bruits doux"],
+                id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition", "eau", "bruits doux", "savon"],
                 routine_steps: [
                     { text: "Remplir une bassine d'eau tiède et de savon.", visual: "🛁 Eau et bulles" },
                     { text: "Frotter les jouets avec une brosse.", visual: "🧼 Frotter" },
@@ -229,7 +266,7 @@
                 ]
             },
             { 
-                id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur", "pistes", "motricité globale"],
+                id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur", "pistes", "motricité globale", "global"],
                 routine_steps: [
                     { text: "Démarrer au début de la piste (repère visuel).", visual: "🟢 Départ" },
                     { text: "Suivre la ligne avec les pieds.", visual: "👣 Suivre la ligne" },
@@ -244,6 +281,35 @@
                     { text: "Pointer les mots en suivant le rythme.", visual: "👆 Pointer" },
                     { text: "Répéter la phrase 3 fois.", visual: "🔁 Répéter" },
                     { text: "Changer le rythme (lent/rapide).", visual: "🐌/🐇 Vitesse" }
+                ]
+            },
+            
+            // NOUVELLES ACTIVITÉS (Musique, Cuisine, Art Visuel)
+            { 
+                id: 15, name: "Percussion Rythmique Structurée", category: "Créatif", level: "Moyen", description: "Frapper un tambour ou une percussion en suivant une séquence de cartes visuelles (ex: lent-rapide-lent).", tags_profil: ["Musique", "Rythme", "Répétition", "Séquence", "Sonore", "Moteur"],
+                routine_steps: [
+                    { text: "Choisir la carte de rythme (visuel de la séquence).", visual: "🎼 Carte Rythme" },
+                    { text: "Frapper la percussion en suivant le premier rythme (ex: 3x lent).", visual: "🥁 Frapper lent" },
+                    { text: "Frapper la percussion en suivant le deuxième rythme (ex: 5x rapide).", visual: "⚡ Frapper rapide" },
+                    { text: "Échanger l'instrument avec l'adulte (social/partage).", visual: "🤝 Partager" }
+                ]
+            },
+            { 
+                id: 16, name: "La Recette Visuelle Simple", category: "Pratique", level: "Élevé", description: "Préparer un goûter simple (mélanger des ingrédients) en suivant une routine visuelle étape par étape.", tags_profil: ["Cuisine", "Séquence", "Logique", "motricité fine", "visuel", "mesure"],
+                routine_steps: [
+                    { text: "Laver les mains (séquence d'hygiène).", visual: "🧼 Lavage mains" },
+                    { text: "Mesurer les ingrédients (cuillère/tasse).", visual: "🥄 Mesurer" },
+                    { text: "Mélanger les ingrédients (apport moteur fin).", visual: "🥣 Mélanger" },
+                    { text: "Goûter la préparation (sensoriel oral).", visual: "😋 Goûter" }
+                ]
+            },
+            { 
+                id: 17, name: "Peinture au Coton-Tige", category: "Créatif", level: "Faible", description: "Activité artistique demandant une grande précision motrice fine. Focalise sur la couleur et la pression.", tags_profil: ["Fin", "motricité fine", "couleurs", "visuel", "précision", "textures"],
+                routine_steps: [
+                    { text: "Choisir 3 couleurs de peinture.", visual: "🌈 Choisir couleur" },
+                    { text: "Prendre un coton-tige (pince fine).", visual: "🥢 Coton-tige" },
+                    { text: "Faire des points précis sur la feuille.", visual: "⚫ Faire des points" },
+                    { text: "Laisser sécher et observer le résultat.", visual: "👀 Observer" }
                 ]
             },
         ];
@@ -301,6 +367,8 @@
                 case 'Intérêt': return 'bg-purple-100 text-purple-700';
                 case 'Technologie': return 'bg-teal-100 text-teal-700';
                 case 'Culture': return 'bg-yellow-100 text-yellow-700';
+                case 'Créatif': return 'bg-fuchsia-100 text-fuchsia-700'; // Nouveau
+                case 'Pratique': return 'bg-orange-100 text-orange-700'; // Nouveau
                 default: return 'bg-gray-100 text-gray-700';
             }
         }
@@ -352,13 +420,25 @@
             let score = 0;
             const activityTags = activity.tags_profil.map(tag => tag.toLowerCase().trim());
             
-            // Fonction utilitaire pour vérifier si un tag d'activité matche n'importe quel mot-clé utilisateur.
+            // Fonction utilitaire mise à jour pour inclure les synonymes.
             const hasMatch = (activityTags, userKeywords) => {
                 if (userKeywords.length === 0) return false;
+                
+                // Créer un ensemble de tous les mots à tester (mots utilisateurs + leurs synonymes)
+                const allWordsToTest = new Set();
+                userKeywords.forEach(kw => {
+                    allWordsToTest.add(kw);
+                    // Ajouter les synonymes définis dans la carte SYNONYM_MAP
+                    (SYNONYM_MAP[kw] || []).forEach(syn => allWordsToTest.add(syn));
+                });
+
+                const wordsArray = Array.from(allWordsToTest);
+
+                // Vérifier si un des tags d'activité matche n'importe quel mot de la liste étendue.
                 return activityTags.some(activityTag => 
-                    userKeywords.some(kw => {
+                    wordsArray.some(testWord => {
                         // Correspondance partielle (ex: 'tri' match 'tris' ou 'triangulaire')
-                        return activityTag.includes(kw) || kw.includes(activityTag); 
+                        return activityTag.includes(testWord) || testWord.includes(activityTag); 
                     })
                 );
             };

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catalogue d'Activités Adaptées (TSA)</title>
+    <title>Application de Suivi et Catalogue d'Activités (TSA)</title>
     <!-- Chargement de Tailwind CSS via CDN pour le style -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -22,318 +22,486 @@
             transform: translateY(-5px);
             box-shadow: 0 12px 20px rgba(126, 114, 218, 0.2); /* Ombre plus douce et colorée */
         }
-        /* Couleurs de fond des cartes au survol (personnalisées dans JS) */
-        .hover-reg:hover { background-color: #e0f2fe; } /* Blue pastel */
-        .hover-social:hover { background-color: #d1fae5; } /* Green pastel */
-        .hover-moteur:hover { background-color: #ffe4e6; } /* Pink pastel */
-        .hover-interet:hover { background-color: #f3e8ff; } /* Purple pastel */
+        /* Couleurs de fond des cartes au survol */
+        .hover-reg:hover { background-color: #e0f2fe; }
+        .hover-social:hover { background-color: #d1fae5; }
+        .hover-moteur:hover { background-color: #ffe4e6; }
+        .hover-interet:hover { background-color: #f3e8ff; }
+        /* Style pour les onglets */
+        .tab-button {
+            transition: all 0.15s;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
         <header class="mb-8 text-center">
-            <h1 class="text-4xl font-extrabold text-indigo-700 mb-2">Catalogue d'Activités Adaptées (TSA)</h1>
-            <p class="text-gray-600">Trouvez des activités structurées pour le développement des enfants autistes.</p>
+            <h1 class="text-4xl font-extrabold text-indigo-700 mb-2">Application de Suivi d'Activités Adaptées (TSA)</h1>
+            <p class="text-gray-600">Catalogue, Profilage et Journal d'Observations.</p>
         </header>
 
-        <!-- ZONE DE SAISIE LIBRE DU PROFIL DE L'ENFANT (Couleur Pastel) -->
-        <div class="flex flex-col gap-4 mb-6 p-6 bg-purple-100 rounded-xl border border-purple-300 shadow-md">
-            <h2 class="text-xl font-bold text-purple-800 border-b border-purple-300 pb-2 mb-2">Décrire le Profil de l'Enfant (Saisie Libre)</h2>
-            <p class="text-sm text-purple-700 mb-2">
-                Utilisez des mots-clés séparés par des virgules (ex: "eau, sauter, trains") pour affiner les recommandations d'activités en fonction des besoins de votre enfant.
-                <span class="font-semibold text-purple-900">(Le système gère maintenant les synonymes : ex. 'lourd' inclut 'proprioceptif'.)</span>
+        <!-- NAVIGATION PAR ONGLET -->
+        <nav class="flex border-b border-gray-200 mb-8">
+            <button id="tab-catalogue" onclick="switchTab('catalogue')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600 active">
+                📚 Catalogue d'Activités
+            </button>
+            <button id="tab-observations" onclick="switchTab('observations')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600">
+                📝 Journal d'Observations
+            </button>
+        </nav>
+        <!-- FIN NAVIGATION PAR ONGLET -->
+
+        <!-- CONTENU DU CATALOGUE (Défaut) -->
+        <div id="view-catalogue" class="tab-content">
+            <!-- ZONE DE SAISIE LIBRE DU PROFIL DE L'ENFANT (Couleur Pastel) -->
+            <div class="flex flex-col gap-4 mb-6 p-6 bg-purple-100 rounded-xl border border-purple-300 shadow-md">
+                <h2 class="text-xl font-bold text-purple-800 border-b border-purple-300 pb-2 mb-2">Décrire le Profil de l'Enfant (Saisie Libre)</h2>
+                <p class="text-sm text-purple-700 mb-2">
+                    Utilisez des mots-clés séparés par des virgules pour affiner les recommandations (ex: "eau, sauter, trains"). Le système gère les synonymes.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="attractions-input" class="block text-sm font-medium text-gray-700 mb-1">🎯 Ce qui l'attire (Intérêts forts) :</label>
+                        <textarea id="attractions-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Dinosaures, trains, couleurs vives, logique, tri"></textarea>
+                    </div>
+                    <div>
+                        <label for="calming-input" class="block text-sm font-medium text-gray-700 mb-1">🧘 Ce qui l'apaise (Régulation sensorielle) :</label>
+                        <textarea id="calming-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Bruits doux, massage, eau, routines strictes, Proprioceptif"></textarea>
+                    </div>
+                    <div>
+                        <label for="needs-input" class="block text-sm font-medium text-gray-700 mb-1">⚙️ Ses besoins/difficultés (Social/Moteur) :</label>
+                        <textarea id="needs-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Motricité fine, Séquence, Répétition, interagir, Kinesthésique"></textarea>
+                    </div>
+                </div>
+            </div>
+            <!-- FIN ZONE DE SAISIE LIBRE -->
+
+            <!-- Zone de Filtres Thématiques/Structure (Couleur Pastel) -->
+            <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-100 rounded-lg border border-indigo-300 shadow-md">
+                <!-- Filtre par Catégorie Thématique -->
+                <div class="flex-1">
+                    <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-1">Thème d'Activité</label>
+                    <select id="category-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                        <option value="all">Tous les Thèmes</option>
+                        <option value="Régulation">🧘 Régulation Sensorielle</option>
+                        <option value="Social">🤝 Compétences Sociales</option>
+                        <option value="Moteur">🖐️ Développement Moteur</option>
+                        <option value="Intérêt">🧠 Intérêts Spécifiques</option>
+                        <option value="Technologie">💻 Technologie</option>
+                        <option value="Culture">📚 Culture</option>
+                        <option value="Créatif">🎨 Créatif/Arts</option>
+                        <option value="Pratique">🔪 Pratique/Cuisine</option>
+                    </select>
+                </div>
+
+                <!-- Filtre par Niveau d'Autonomie/Structure -->
+                <div class="flex-1">
+                    <label for="level-filter" class="block text-sm font-medium text-gray-700 mb-1">Niveau de Structure</label>
+                    <select id="level-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                        <option value="all">Tous les Niveaux</option>
+                        <option value="Faible">Faible (Exploration Libre)</option>
+                        <option value="Moyen">Moyen (Séquences Simples)</option>
+                        <option value="Élevé">Élevé (Routine Structurée)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Grille des Activités -->
+            <div id="activities-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Les cartes d'activités seront injectées ici par JavaScript -->
+            </div>
+
+            <!-- Message en cas de non-résultat -->
+            <p id="no-results-message" class="text-center text-xl text-gray-500 mt-10 hidden">
+                Aucune activité ne correspond à vos critères de recherche.
             </p>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="attractions-input" class="block text-sm font-medium text-gray-700 mb-1">🎯 Ce qui l'attire (Intérêts forts) :</label>
-                    <textarea id="attractions-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Dinosaures, trains, couleurs vives, logique, tri"></textarea>
-                </div>
-                <div>
-                    <label for="calming-input" class="block text-sm font-medium text-gray-700 mb-1">🧘 Ce qui l'apaise (Régulation sensorielle) :</label>
-                    <textarea id="calming-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Bruits doux, massage, eau, routines strictes, Proprioceptif"></textarea>
-                </div>
-                <div>
-                    <label for="needs-input" class="block text-sm font-medium text-gray-700 mb-1">⚙️ Ses besoins/difficultés (Social/Moteur) :</label>
-                    <textarea id="needs-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Motricité fine, Séquence, Répétition, interagir, Kinesthésique"></textarea>
-                </div>
-            </div>
         </div>
-        <!-- FIN ZONE DE SAISIE LIBRE -->
+        <!-- FIN CONTENU DU CATALOGUE -->
 
-        <!-- Zone de Filtres Thématiques/Structure (Couleur Pastel) -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-100 rounded-lg border border-indigo-300 shadow-md">
-            <!-- Filtre par Catégorie Thématique -->
-            <div class="flex-1">
-                <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-1">Thème d'Activité</label>
-                <select id="category-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                    <option value="all">Tous les Thèmes</option>
-                    <option value="Régulation">🧘 Régulation Sensorielle</option>
-                    <option value="Social">🤝 Compétences Sociales</option>
-                    <option value="Moteur">🖐️ Développement Moteur</option>
-                    <option value="Intérêt">🧠 Intérêts Spécifiques</option>
-                    <option value="Technologie">💻 Technologie</option>
-                    <option value="Culture">📚 Culture</option>
-                    <option value="Créatif">🎨 Créatif/Arts</option>
-                    <option value="Pratique">🔪 Pratique/Cuisine</option>
-                </select>
+
+        <!-- CONTENU DU JOURNAL D'OBSERVATIONS (Masqué par défaut) -->
+        <div id="view-observations" class="tab-content hidden">
+            <!-- Formulaire de Nouvelle Observation -->
+            <div class="bg-green-50 p-6 rounded-xl border border-green-300 mb-8 shadow-lg">
+                <h2 class="text-2xl font-bold text-green-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Ajouter une Nouvelle Observation
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label for="obs-date" class="block text-sm font-medium text-gray-700">Date de l'Observation</label>
+                        <input type="date" id="obs-date" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="obs-aspect" class="block text-sm font-medium text-gray-700">Aspect du Profil Concerné</label>
+                        <select id="obs-aspect" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                            <option value="">-- Choisir un Aspect --</option>
+                            <option value="Régulation">🧘 Régulation Sensorielle</option>
+                            <option value="Social">🤝 Compétences Sociales</option>
+                            <option value="Moteur">🖐️ Développement Moteur</option>
+                            <option value="Intérêt">🧠 Intérêts Spécifiques</option>
+                            <option value="Général">🔍 Général/Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="obs-status" class="block text-sm font-medium text-gray-700">Statut du Comportement</label>
+                        <select id="obs-status" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                            <option value="">-- Choisir un Statut --</option>
+                            <option value="Amélioration">🟢 Amélioration / Acquisition</option>
+                            <option value="Stagnation">🟡 Stagnation / Maintien</option>
+                            <option value="Régression">🔴 Régression / Difficulté</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="obs-note" class="block text-sm font-medium text-gray-700">Note Détaillée (Max 500 caractères)</label>
+                    <textarea id="obs-note" rows="3" maxlength="500" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Ex: A pu tolérer le bruit du mixeur pendant 15 secondes, ce qui est une nette amélioration par rapport à la semaine dernière."></textarea>
+                </div>
+                
+                <button onclick="saveObservation()" class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150">
+                    Enregistrer l'Observation
+                </button>
             </div>
 
-            <!-- Filtre par Niveau d'Autonomie/Structure -->
-            <div class="flex-1">
-                <label for="level-filter" class="block text-sm font-medium text-gray-700 mb-1">Niveau de Structure</label>
-                <select id="level-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                    <option value="all">Tous les Niveaux</option>
-                    <option value="Faible">Faible (Exploration Libre)</option>
-                    <option value="Moyen">Moyen (Séquences Simples)</option>
-                    <option value="Élevé">Élevé (Routine Structurée)</option>
-                </select>
+            <!-- Liste des Observations Passées -->
+            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m-9 12h9m-9 0a2 2 0 002-2V5m-9 4h4m-4 8h4"></path></svg>
+                Historique des Observations
+            </h2>
+            <div id="observations-list" class="space-y-4">
+                <p id="loading-observations" class="text-center text-gray-500">Chargement de l'historique...</p>
+                <!-- Les observations seront injectées ici par JavaScript -->
             </div>
-        </div>
+            
+            <div id="auth-info" class="mt-8 text-center text-sm text-gray-500">
+                <!-- Les informations d'authentification seront affichées ici -->
+            </div>
 
-        <!-- Grille des Activités -->
-        <div id="activities-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Les cartes d'activités seront injectées ici par JavaScript -->
         </div>
-
-        <!-- Message en cas de non-résultat -->
-        <p id="no-results-message" class="text-center text-xl text-gray-500 mt-10 hidden">
-            Aucune activité ne correspond à vos critères de recherche.
-        </p>
+        <!-- FIN CONTENU DU JOURNAL D'OBSERVATIONS -->
 
     </div>
 
-    <script>
+    <!-- MODAL POUR LES DÉTAILS DE LA ROUTINE (Même fonction qu'avant, elle doit être accessible globalement) -->
+    <div id="details-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full my-8 transform transition-all">
+            <!-- Le contenu sera injecté par showDetails() -->
+            <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </div>
+    
+    <script type="module">
         // =========================================================================
-        //  CARTE DES SYNONYMES (Pour un profilage plus efficace)
+        //  FIREBASE ET PERSISTENCE DES DONNÉES (Mandatory setup)
         // =========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, collection, query, addDoc, 
+            onSnapshot, orderBy, serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        let db, auth, userId = null;
+        let isAuthReady = false;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            console.log("Firebase initialized.");
+
+            // Écouteur de l'état d'authentification
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('auth-info').textContent = `Connecté (UserID: ${userId})`;
+                    console.log("User authenticated:", userId);
+                    isAuthReady = true;
+                    // Une fois authentifié, on commence à écouter les observations
+                    setupObservationListener();
+                } else {
+                    // Si non authentifié, tente de se connecter
+                    try {
+                         if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            // En l'absence de token, connexion anonyme comme solution de repli
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication Error:", error);
+                        // Fallback pour un userId aléatoire si l'authentification échoue
+                        userId = crypto.randomUUID();
+                        document.getElementById('auth-info').textContent = `Session Locale (ID temporaire: ${userId.substring(0, 8)}...)`;
+                        isAuthReady = true;
+                        // On doit pouvoir enregistrer localement si possible, mais ici on gère le Firestore.
+                        // Sans auth réussi, l'accès à Firestore peut être restreint par les règles de sécurité.
+                    }
+                }
+            });
+        } else {
+             // Cas où Firebase n'est pas configuré (mode développement sans persist.)
+            console.error("Firebase config is missing. Observations cannot be saved.");
+            userId = crypto.randomUUID(); // ID local temporaire
+            isAuthReady = true;
+            document.getElementById('auth-info').textContent = `Mode déconnecté (UserID temporaire: ${userId.substring(0, 8)}...)`;
+        }
+
+
+        // =========================================================================
+        //  LOGIQUE DU JOURNAL D'OBSERVATIONS (Firestore CRUD)
+        // =========================================================================
+        
         /**
-         * Mapping des mots-clés utilisateurs vers des synonymes ou concepts associés.
-         * Le système utilise ce map pour élargir la recherche à partir du mot saisi par l'utilisateur.
+         * Configuration de l'écouteur en temps réel pour les observations.
          */
+        function setupObservationListener() {
+            if (!db || !userId) {
+                console.error("Firestore or UserID not ready.");
+                return;
+            }
+
+            const observationCollectionPath = `artifacts/${appId}/users/${userId}/observations`;
+            const q = query(collection(db, observationCollectionPath), orderBy("timestamp", "desc"));
+            
+            const listElement = document.getElementById('observations-list');
+            listElement.innerHTML = ''; // Nettoyer le message de chargement
+
+            onSnapshot(q, (snapshot) => {
+                const observations = [];
+                snapshot.forEach((doc) => {
+                    observations.push({ id: doc.id, ...doc.data() });
+                });
+                renderObservations(observations);
+            }, (error) => {
+                console.error("Error fetching observations: ", error);
+                listElement.innerHTML = '<p class="text-center text-red-500">Erreur lors du chargement des observations. Veuillez vérifier la console.</p>';
+            });
+        }
+
+
+        /**
+         * Enregistre une nouvelle observation dans Firestore.
+         */
+        window.saveObservation = async function() {
+            if (!isAuthReady || !db || !userId) {
+                 console.error("Cannot save: Authentication or Database not ready.");
+                 // Utiliser une boîte modale simple au lieu d'alert()
+                 showCustomMessage("Erreur d'enregistrement", "La base de données n'est pas prête. Veuillez attendre l'authentification.", 'error');
+                 return;
+            }
+
+            const date = document.getElementById('obs-date').value;
+            const aspect = document.getElementById('obs-aspect').value;
+            const status = document.getElementById('obs-status').value;
+            const note = document.getElementById('obs-note').value.trim();
+
+            if (!date || !aspect || !status || !note) {
+                 showCustomMessage("Champs manquants", "Veuillez remplir la date, l'aspect, le statut et la note avant d'enregistrer.", 'warning');
+                 return;
+            }
+
+            try {
+                const observation = {
+                    date: date, // 'YYYY-MM-DD'
+                    aspect: aspect,
+                    status: status,
+                    note: note,
+                    timestamp: serverTimestamp(), // Firestore field for proper sorting
+                };
+                
+                const observationCollectionPath = `artifacts/${appId}/users/${userId}/observations`;
+                await addDoc(collection(db, observationCollectionPath), observation);
+                
+                // Réinitialiser le formulaire après succès
+                document.getElementById('obs-date').value = new Date().toISOString().slice(0, 10);
+                document.getElementById('obs-aspect').value = '';
+                document.getElementById('obs-status').value = '';
+                document.getElementById('obs-note').value = '';
+
+                showCustomMessage("Succès!", "Observation enregistrée avec succès.", 'success');
+
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showCustomMessage("Erreur Firestore", "Échec de l'enregistrement de l'observation: " + e.message, 'error');
+            }
+        }
+
+        /**
+         * Affiche la liste des observations récupérées.
+         * @param {Array<object>} observations - Liste des observations.
+         */
+        function renderObservations(observations) {
+            const listElement = document.getElementById('observations-list');
+            listElement.innerHTML = '';
+
+            if (observations.length === 0) {
+                listElement.innerHTML = `
+                    <div class="bg-gray-100 p-6 rounded-lg text-center text-gray-600">
+                        <p class="font-semibold mb-1">Aucune observation enregistrée pour l'instant.</p>
+                        <p class="text-sm">Utilisez le formulaire ci-dessus pour commencer le suivi.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            observations.forEach(obs => {
+                listElement.appendChild(createObservationItem(obs));
+            });
+        }
+
+        /**
+         * Crée l'élément DOM pour une observation.
+         * @param {object} obs - L'objet observation.
+         * @returns {HTMLElement} L'élément de liste.
+         */
+        function createObservationItem(obs) {
+            const item = document.createElement('div');
+            
+            let statusColor;
+            let statusIcon;
+            switch (obs.status) {
+                case 'Amélioration': statusColor = 'border-green-400 bg-green-50'; statusIcon = '🟢'; break;
+                case 'Stagnation': statusColor = 'border-yellow-400 bg-yellow-50'; statusIcon = '🟡'; break;
+                case 'Régression': statusColor = 'border-red-400 bg-red-50'; statusIcon = '🔴'; break;
+                default: statusColor = 'border-gray-400 bg-gray-50'; statusIcon = '⚫';
+            }
+
+            item.className = `p-4 rounded-lg border-l-4 ${statusColor} shadow-md`;
+            item.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-lg text-gray-800">${statusIcon} Observation sur l'aspect: ${obs.aspect}</h3>
+                    <span class="text-sm text-gray-500 font-medium">${obs.date}</span>
+                </div>
+                <p class="text-gray-700 mb-2 italic">${obs.note}</p>
+                <div class="text-xs text-gray-500 pt-2 border-t border-gray-200">
+                    Statut: <span class="font-semibold text-gray-700">${obs.status}</span>
+                </div>
+            `;
+            return item;
+        }
+
+
+        /**
+         * Fonction utilitaire pour afficher des messages personnalisés (au lieu d'alert).
+         */
+        function showCustomMessage(title, message, type) {
+            // Logique simple pour un message flottant (peut être amélioré)
+            const colorMap = {
+                'success': 'bg-green-500',
+                'warning': 'bg-yellow-500',
+                'error': 'bg-red-500',
+            };
+            const color = colorMap[type] || 'bg-indigo-500';
+
+            const toast = document.createElement('div');
+            toast.className = `fixed top-5 right-5 p-4 rounded-lg text-white shadow-xl z-50 transition-all duration-500 transform translate-y-0 ${color}`;
+            toast.innerHTML = `
+                <div class="font-bold">${title}</div>
+                <div class="text-sm">${message}</div>
+            `;
+            document.body.appendChild(toast);
+            
+            // Masquer et supprimer après 4 secondes
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+
+        // Initialisation de la date d'observation à la date du jour
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('obs-date').value = today;
+            // Démarrer l'écoute si l'authentification est déjà prête (cas peu probable mais safe)
+            if (isAuthReady) {
+                setupObservationListener();
+            }
+        });
+
+
+        // =========================================================================
+        //  LOGIQUE DE NAVIGATION PAR ONGLET
+        // =========================================================================
+        window.switchTab = function(tabName) {
+            const tabs = ['catalogue', 'observations'];
+            tabs.forEach(tab => {
+                const view = document.getElementById(`view-${tab}`);
+                const button = document.getElementById(`tab-${tab}`);
+                if (tab === tabName) {
+                    view.classList.remove('hidden');
+                    button.classList.add('active');
+                } else {
+                    view.classList.add('hidden');
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // =========================================================================
+        //  LOGIQUE DU CATALOGUE (Fonctionnalités déjà existantes)
+        // =========================================================================
+
         const SYNONYM_MAP = {
-            // Moteur / Kinesthésique
-            "fin": ["motricité fine", "doigts", "perles", "pinces"],
-            "fine": ["motricité fine", "doigts", "perles", "pinces"],
-            "global": ["motricité globale", "courir", "sauter", "ramper"],
-            "kinesthésique": ["mouvement", "bouger", "sauter", "courir", "ramper"],
-            "proprioceptif": ["lourd", "pression", "massage", "serrer", "compression"],
-            // Régulation / Sensoriel
-            "eau": ["aquatique", "bulles", "lavage", "savon"],
-            "calme": ["détente", "silence", "paix", "doux", "apaisement"],
-            "bruits doux": ["calme", "sonore", "silence", "écoute"],
-            "textures": ["sensoriel", "tactile", "toucher", "visqueux"],
-            // Logique / Routine
-            "séquence": ["routine", "étapes", "logique", "ordonner", "suivre"],
-            "répétition": ["rituel", "routine", "répéter", "circulaire"],
-            "tri": ["classer", "catégoriser", "ordonner"],
-            // Social / Communication
-            "interagir": ["social", "communication", "jeu de rôle", "partager"],
-            "émotions": ["sentiments", "social", "visages", "humeur"],
-            // Intérêts
-            "blocs": ["construction", "lego", "duplo"],
-            "trains": ["rail", "locomotive"],
-            "dinosaures": ["dino", "fossiles"],
-            "musique": ["rythme", "tambour", "sonore", "chanter"],
-            "cuisine": ["mélanger", "recette", "nourriture", "préparer"],
+            "fin": ["motricité fine", "doigts", "perles", "pinces"], "fine": ["motricité fine", "doigts", "perles", "pinces"],
+            "global": ["motricité globale", "courir", "sauter", "ramper"], "kinesthésique": ["mouvement", "bouger", "sauter", "courir", "ramper"],
+            "proprioceptif": ["lourd", "pression", "massage", "serrer", "compression"], "eau": ["aquatique", "bulles", "lavage", "savon"],
+            "calme": ["détente", "silence", "paix", "doux", "apaisement"], "bruits doux": ["calme", "sonore", "silence", "écoute"],
+            "textures": ["sensoriel", "tactile", "toucher", "visqueux"], "séquence": ["routine", "étapes", "logique", "ordonner", "suivre"],
+            "répétition": ["rituel", "routine", "répéter", "circulaire"], "tri": ["classer", "catégoriser", "ordonner"],
+            "interagir": ["social", "communication", "jeu de rôle", "partager"], "émotions": ["sentiments", "social", "visages", "humeur"],
+            "blocs": ["construction", "lego", "duplo"], "trains": ["rail", "locomotive"], "dinosaures": ["dino", "fossiles"],
+            "musique": ["rythme", "tambour", "sonore", "chanter"], "cuisine": ["mélanger", "recette", "nourriture", "préparer"],
         };
 
-        // =========================================================================
-        //  DONNÉES DES ACTIVITÉS
-        // =========================================================================
-
-        /**
-         * La liste des activités a été enrichie d'une liste de 'tags_profil' pour les mots-clés libres,
-         * ainsi qu'une structure 'routine_steps' pour les détails visuels.
-         */
         const activitiesData = [
-            // RÉGULATION SENSORIELLE
-            { 
-                id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel", "Sonore", "solitude", "bruits doux"],
-                routine_steps: [
-                    { text: "Mettre les écouteurs (isolation sonore).", visual: "🎧 Écouteurs" },
-                    { text: "S'asseoir sur le sac de haricots.", visual: "🛋️ Sac de haricots" },
-                    { text: "Utiliser le timer (10 min).", visual: "⏲️ Timer/Sablier" },
-                    { text: "Respirer 5 fois profondément (auto-régulation).", visual: "🌬️ Respirer" }
-                ]
-            },
-            { 
-                id: 2, name: "Bac Sensoriel Thématique", category: "Régulation", level: "Moyen", description: "Explorer des textures (riz, pâtes, eau) avec un thème précis (ex: 'ferme'). Nécessite supervision initiale.", tags_profil: ["Répétition", "Visuel", "eau", "textures"],
-                routine_steps: [
-                    { text: "Installer le bac sensoriel (riz coloré).", visual: "🥣 Bac de riz" },
-                    { text: "Utiliser des outils (pelles, tasses).", visual: "🥄 Outils" },
-                    { text: "Remplir et vider les contenants.", visual: "🔄 Transvaser" },
-                    { text: "Ranger les outils dans le bac.", visual: "🧹 Ranger" }
-                ]
-            },
-            { 
-                id: 3, name: "Compression du Corps (Massage)", category: "Régulation", level: "Élevé", description: "Routine de pression profonde pour l'apport proprioceptif. Nécessite une séquence visuelle stricte.", tags_profil: ["Proprioceptif", "Calme", "Séquence", "massage", "lourd"],
-                routine_steps: [
-                    { text: "Placer le matelas ou le tapis au sol.", visual: "🧘 Tapis" },
-                    { text: "Presser les jambes (5 secondes).", visual: "🦵 Pression jambe" },
-                    { text: "Presser les bras (5 secondes).", visual: "💪 Pression bras" },
-                    { text: "Se couvrir d'une couverture lourde (2 minutes).", visual: " Blankett" }
-                ]
-            },
-            
-            // COMPÉTENCES SOCIALES ET ÉMOTIONNELLES
-            { 
-                id: 4, name: "Jeu de Cartes 'Émotions'", category: "Social", level: "Élevé", description: "Associer des visages à des étiquettes d'émotions. Routine d'apprentissage structurée.", tags_profil: ["Séquence", "Logique", "Visuel", "émotions", "contact visuel"],
-                routine_steps: [
-                    { text: "Choisir une carte émotion (ex: Joie).", visual: "😊 Carte émotion" },
-                    { text: "Demander 'Comment il se sent ?'.", visual: "🗣️ Questionner" },
-                    { text: "Faire l'expression du visage.", visual: "🎭 Mimer" },
-                    { text: "Ranger la carte dans la boîte.", visual: "📦 Ranger" }
-                ]
-            },
-            { 
-                id: 5, name: "L'Histoire Sociale du Matin", category: "Social", level: "Moyen", description: "Lecture d'une histoire courte décrivant une interaction sociale simple (ex: demander de l'aide).", tags_profil: ["Visuel", "interagir", "communication"],
-                routine_steps: [
-                    { text: "S'asseoir calmement (préparer le corps).", visual: "🪑 S'asseoir" },
-                    { text: "Écouter l'histoire (support visuel du livre).", visual: "📖 Lire" },
-                    { text: "Discuter du 'problème' dans l'histoire.", visual: "🤔 Analyser" },
-                    { text: "Mimer la solution (ex: 'demander de l'aide').", visual: "🙏 Demander aide" }
-                ]
-            },
-            { 
-                id: 6, name: "Jeu de Rôle Séquencé (Magasin)", category: "Social", level: "Élevé", description: "Suivre une série d'étapes visuelles pour simuler une transaction simple.", tags_profil: ["Séquence", "Logique", "attente", "social"],
-                routine_steps: [
-                    { text: "Prendre 1 jeton (monnaie pour l'échange).", visual: "🪙 Jeton" },
-                    { text: "Choisir un article (repère visuel du produit).", visual: "🛒 Choisir" },
-                    { text: "Attendre son tour (visuel d'attente).", visual: "⏳ Attendre" },
-                    { text: "Donner le jeton et dire 'Merci'.", visual: "🤝 Dire merci" }
-                ]
-            },
-            
-            // DÉVELOPPEMENT MOTEUR (Fin et Global)
-            { 
-                id: 7, name: "Mosaïque de Perles à Enfiler", category: "Moteur", level: "Moyen", description: "Exercice de motricité fine pour améliorer la coordination œil-main. Résultat visuel immédiat.", tags_profil: ["Fin", "Répétition", "motricité fine"],
-                routine_steps: [
-                    { text: "Séparer les perles par couleur (tri visuel).", visual: "🔴 Tri couleur" },
-                    { text: "Enfiler les perles selon un motif simple.", visual: "🧵 Enfiler" },
-                    { text: "Compter les perles utilisées (maths).", visual: "🔢 Compter" },
-                    { text: "Exposer la création (fierté).", visual: "🖼️ Montrer" }
-                ]
-            },
-            { 
-                id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique", "sauter", "courir", "ramper", "global"],
-                routine_steps: [
-                    { text: "Passer sous un tunnel ou un drap.", visual: " Crawling" },
-                    { text: "Marcher sur une ligne de ruban adhésif.", visual: "🚶 Marcher" },
-                    { text: "Sauter 3 fois sur place (apport vestibulaire).", visual: "🤸 Sauter" },
-                    { text: "Retour au point de départ.", visual: "🏁 Fin" }
-                ]
-            },
-            
-            // INTÉRÊTS SPÉCIFIQUES
-            { 
-                id: 9, name: "Dictionnaire des Dinosaures", category: "Intérêt", level: "Moyen", description: "Organiser des fiches d'animaux (ou tout autre intérêt) par taille ou période. Activité de tri structurée.", tags_profil: ["Tri", "Logique", "Dinosaures", "animaux"],
-                routine_steps: [
-                    { text: "Choisir 5 fiches 'Dinosaure'.", visual: "🦕 Fiche" },
-                    { text: "Trouver la taille de chacun (recherche visuelle).", visual: "📏 Mesurer" },
-                    { text: "Les classer du plus petit au plus grand.", visual: "➡️ Tri" },
-                    { text: "Dicter le nom du plus grand (langage).", visual: "🗣️ Nommer" }
-                ]
-            },
-            { 
-                id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur", "construction", "Lego", "Duplo", "blocs"],
-                routine_steps: [
-                    { text: "Choisir les blocs (même couleur si besoin de routine).", visual: "🧱 Choisir blocs" },
-                    { text: "Empiler les blocs jusqu'à épuisement.", visual: "🗼 Empiler" },
-                    { text: "Faire tomber la tour (apport proprioceptif).", visual: "💥 Détruire" },
-                    { text: "Recommencer.", visual: "🔁 Recommencer" }
-                ]
-            },
-            { 
-                id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Élevé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence", "programmation", "technologie", "blocs"],
-                routine_steps: [
-                    { text: "Choisir un personnage et un arrière-plan.", visual: "💻 Écran" },
-                    { text: "Ajouter le bloc 'Avancer' (3 fois).", visual: "➡️ Avancer" },
-                    { text: "Ajouter le bloc 'Parler' ('Salut !').", visual: "💬 Parler" },
-                    { text: "Tester la séquence (vérification logique).", visual: "▶️ Exécuter" }
-                ]
-            },
-            
-            // AJOUTS PRÉCÉDENTS
-            { 
-                id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition", "eau", "bruits doux", "savon"],
-                routine_steps: [
-                    { text: "Remplir une bassine d'eau tiède et de savon.", visual: "🛁 Eau et bulles" },
-                    { text: "Frotter les jouets avec une brosse.", visual: "🧼 Frotter" },
-                    { text: "Rincer les jouets (sensation eau propre).", visual: "💧 Rincer" },
-                    { text: "Éponger (motricité fine et rangement).", visual: "💦 Éponger" }
-                ]
-            },
-            { 
-                id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur", "pistes", "motricité globale", "global"],
-                routine_steps: [
-                    { text: "Démarrer au début de la piste (repère visuel).", visual: "🟢 Départ" },
-                    { text: "Suivre la ligne avec les pieds.", visual: "👣 Suivre la ligne" },
-                    { text: "S'arrêter au panneau STOP (si présent).", visual: "🛑 Arrêt" },
-                    { text: "Recommencer dans l'autre sens.", visual: "↩️ Retour" }
-                ]
-            },
-            { 
-                id: 14, name: "Lecture Rythmée", category: "Culture", level: "Moyen", description: "Lire un poème court avec un métronome ou un rythme marqué. Aide à la prosodie et au langage.", tags_profil: ["Séquence", "Répétition", "musique", "rythme"],
-                routine_steps: [
-                    { text: "Démarrer le métronome ou la musique.", visual: "🎶 Musique/Métronome" },
-                    { text: "Pointer les mots en suivant le rythme.", visual: "👆 Pointer" },
-                    { text: "Répéter la phrase 3 fois.", visual: "🔁 Répéter" },
-                    { text: "Changer le rythme (lent/rapide).", visual: "🐌/🐇 Vitesse" }
-                ]
-            },
-            
-            // NOUVELLES ACTIVITÉS (Musique, Cuisine, Art Visuel)
-            { 
-                id: 15, name: "Percussion Rythmique Structurée", category: "Créatif", level: "Moyen", description: "Frapper un tambour ou une percussion en suivant une séquence de cartes visuelles (ex: lent-rapide-lent).", tags_profil: ["Musique", "Rythme", "Répétition", "Séquence", "Sonore", "Moteur"],
-                routine_steps: [
-                    { text: "Choisir la carte de rythme (visuel de la séquence).", visual: "🎼 Carte Rythme" },
-                    { text: "Frapper la percussion en suivant le premier rythme (ex: 3x lent).", visual: "🥁 Frapper lent" },
-                    { text: "Frapper la percussion en suivant le deuxième rythme (ex: 5x rapide).", visual: "⚡ Frapper rapide" },
-                    { text: "Échanger l'instrument avec l'adulte (social/partage).", visual: "🤝 Partager" }
-                ]
-            },
-            { 
-                id: 16, name: "La Recette Visuelle Simple", category: "Pratique", level: "Élevé", description: "Préparer un goûter simple (mélanger des ingrédients) en suivant une routine visuelle étape par étape.", tags_profil: ["Cuisine", "Séquence", "Logique", "motricité fine", "visuel", "mesure"],
-                routine_steps: [
-                    { text: "Laver les mains (séquence d'hygiène).", visual: "🧼 Lavage mains" },
-                    { text: "Mesurer les ingrédients (cuillère/tasse).", visual: "🥄 Mesurer" },
-                    { text: "Mélanger les ingrédients (apport moteur fin).", visual: "🥣 Mélanger" },
-                    { text: "Goûter la préparation (sensoriel oral).", visual: "😋 Goûter" }
-                ]
-            },
-            { 
-                id: 17, name: "Peinture au Coton-Tige", category: "Créatif", level: "Faible", description: "Activité artistique demandant une grande précision motrice fine. Focalise sur la couleur et la pression.", tags_profil: ["Fin", "motricité fine", "couleurs", "visuel", "précision", "textures"],
-                routine_steps: [
-                    { text: "Choisir 3 couleurs de peinture.", visual: "🌈 Choisir couleur" },
-                    { text: "Prendre un coton-tige (pince fine).", visual: "🥢 Coton-tige" },
-                    { text: "Faire des points précis sur la feuille.", visual: "⚫ Faire des points" },
-                    { text: "Laisser sécher et observer le résultat.", visual: "👀 Observer" }
-                ]
-            },
+            { id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel", "Sonore", "solitude", "bruits doux"], routine_steps: [{ text: "Mettre les écouteurs (isolation sonore).", visual: "🎧 Écouteurs" }, { text: "S'asseoir sur le sac de haricots.", visual: "🛋️ Sac de haricots" }, { text: "Utiliser le timer (10 min).", visual: "⏲️ Timer/Sablier" }, { text: "Respirer 5 fois profondément (auto-régulation).", visual: "🌬️ Respirer" }] },
+            { id: 2, name: "Bac Sensoriel Thématique", category: "Régulation", level: "Moyen", description: "Explorer des textures (riz, pâtes, eau) avec un thème précis (ex: 'ferme'). Nécessite supervision initiale.", tags_profil: ["Répétition", "Visuel", "eau", "textures"], routine_steps: [{ text: "Installer le bac sensoriel (riz coloré).", visual: "🥣 Bac de riz" }, { text: "Utiliser des outils (pelles, tasses).", visual: "🥄 Outils" }, { text: "Remplir et vider les contenants.", visual: "🔄 Transvaser" }, { text: "Ranger les outils dans le bac.", visual: "🧹 Ranger" }] },
+            { id: 3, name: "Compression du Corps (Massage)", category: "Régulation", level: "Élevé", description: "Routine de pression profonde pour l'apport proprioceptif. Nécessite une séquence visuelle stricte.", tags_profil: ["Proprioceptif", "Calme", "Séquence", "massage", "lourd"], routine_steps: [{ text: "Placer le matelas ou le tapis au sol.", visual: "🧘 Tapis" }, { text: "Presser les jambes (5 secondes).", visual: "🦵 Pression jambe" }, { text: "Presser les bras (5 secondes).", visual: "💪 Pression bras" }, { text: "Se couvrir d'une couverture lourde (2 minutes).", visual: " Blankett" }] },
+            { id: 4, name: "Jeu de Cartes 'Émotions'", category: "Social", level: "Élevé", description: "Associer des visages à des étiquettes d'émotions. Routine d'apprentissage structurée.", tags_profil: ["Séquence", "Logique", "Visuel", "émotions", "contact visuel"], routine_steps: [{ text: "Choisir une carte émotion (ex: Joie).", visual: "😊 Carte émotion" }, { text: "Demander 'Comment il se sent ?'.", visual: "🗣️ Questionner" }, { text: "Faire l'expression du visage.", visual: "🎭 Mimer" }, { text: "Ranger la carte dans la boîte.", visual: "📦 Ranger" }] },
+            { id: 5, name: "L'Histoire Sociale du Matin", category: "Social", level: "Moyen", description: "Lecture d'une histoire courte décrivant une interaction sociale simple (ex: demander de l'aide).", tags_profil: ["Visuel", "interagir", "communication"], routine_steps: [{ text: "S'asseoir calmement (préparer le corps).", visual: "🪑 S'asseoir" }, { text: "Écouter l'histoire (support visuel du livre).", visual: "📖 Lire" }, { text: "Discuter du 'problème' dans l'histoire.", visual: "🤔 Analyser" }, { text: "Mimer la solution (ex: 'demander de l'aide').", visual: "🙏 Demander aide" }] },
+            { id: 6, name: "Jeu de Rôle Séquencé (Magasin)", category: "Social", level: "Élevé", description: "Suivre une série d'étapes visuelles pour simuler une transaction simple.", tags_profil: ["Séquence", "Logique", "attente", "social"], routine_steps: [{ text: "Prendre 1 jeton (monnaie pour l'échange).", visual: "🪙 Jeton" }, { text: "Choisir un article (repère visuel du produit).", visual: "🛒 Choisir" }, { text: "Attendre son tour (visuel d'attente).", visual: "⏳ Attendre" }, { text: "Donner le jeton et dire 'Merci'.", visual: "🤝 Dire merci" }] },
+            { id: 7, name: "Mosaïque de Perles à Enfiler", category: "Moteur", level: "Moyen", description: "Exercice de motricité fine pour améliorer la coordination œil-main. Résultat visuel immédiat.", tags_profil: ["Fin", "Répétition", "motricité fine"], routine_steps: [{ text: "Séparer les perles par couleur (tri visuel).", visual: "🔴 Tri couleur" }, { text: "Enfiler les perles selon un motif simple.", visual: "🧵 Enfiler" }, { text: "Compter les perles utilisées (maths).", visual: "🔢 Compter" }, { text: "Exposer la création (fierté).", visual: "🖼️ Montrer" }] },
+            { id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique", "sauter", "courir", "ramper", "global"], routine_steps: [{ text: "Passer sous un tunnel ou un drap.", visual: " Crawling" }, { text: "Marcher sur une ligne de ruban adhésif.", visual: "🚶 Marcher" }, { text: "Sauter 3 fois sur place (apport vestibulaire).", visual: "🤸 Sauter" }, { text: "Retour au point de départ.", visual: "🏁 Fin" }] },
+            { id: 9, name: "Dictionnaire des Dinosaures", category: "Intérêt", level: "Moyen", description: "Organiser des fiches d'animaux (ou tout autre intérêt) par taille ou période. Activité de tri structurée.", tags_profil: ["Tri", "Logique", "Dinosaures", "animaux"], routine_steps: [{ text: "Choisir 5 fiches 'Dinosaure'.", visual: "🦕 Fiche" }, { text: "Trouver la taille de chacun (recherche visuelle).", visual: "📏 Mesurer" }, { text: "Les classer du plus petit au plus grand.", visual: "➡️ Tri" }, { text: "Dicter le nom du plus grand (langage).", visual: "🗣️ Nommer" }] },
+            { id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur", "construction", "Lego", "Duplo", "blocs"], routine_steps: [{ text: "Choisir les blocs (même couleur si besoin de routine).", visual: "🧱 Choisir blocs" }, { text: "Empiler les blocs jusqu'à épuisement.", visual: "🗼 Empiler" }, { text: "Faire tomber la tour (apport proprioceptif).", visual: "💥 Détruire" }, { text: "Recommencer.", visual: "🔁 Recommencer" }] },
+            { id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Élevé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence", "programmation", "technologie", "blocs"], routine_steps: [{ text: "Choisir un personnage et un arrière-plan.", visual: "💻 Écran" }, { text: "Ajouter le bloc 'Avancer' (3 fois).", visual: "➡️ Avancer" }, { text: "Ajouter le bloc 'Parler' ('Salut !').", visual: "💬 Parler" }, { text: "Tester la séquence (vérification logique).", visual: "▶️ Exécuter" }] },
+            { id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition", "eau", "bruits doux", "savon"], routine_steps: [{ text: "Remplir une bassine d'eau tiède et de savon.", visual: "🛁 Eau et bulles" }, { text: "Frotter les jouets avec une brosse.", visual: "🧼 Frotter" }, { text: "Rincer les jouets (sensation eau propre).", visual: "💧 Rincer" }, { text: "Éponger (motricité fine et rangement).", visual: "💦 Éponger" }] },
+            { id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur", "pistes", "motricité globale", "global"], routine_steps: [{ text: "Démarrer au début de la piste (repère visuel).", visual: "🟢 Départ" }, { text: "Suivre la ligne avec les pieds.", visual: "👣 Suivre la ligne" }, { text: "S'arrêter au panneau STOP (si présent).", visual: "🛑 Arrêt" }, { text: "Recommencer dans l'autre sens.", visual: "↩️ Retour" }] },
+            { id: 14, name: "Lecture Rythmée", category: "Culture", level: "Moyen", description: "Lire un poème court avec un métronome ou un rythme marqué. Aide à la prosodie et au langage.", tags_profil: ["Séquence", "Répétition", "musique", "rythme"], routine_steps: [{ text: "Démarrer le métronome ou la musique.", visual: "🎶 Musique/Métronome" }, { text: "Pointer les mots en suivant le rythme.", visual: "👆 Pointer" }, { text: "Répéter la phrase 3 fois.", visual: "🔁 Répéter" }, { text: "Changer le rythme (lent/rapide).", visual: "🐌/🐇 Vitesse" }] },
+            { id: 15, name: "Percussion Rythmique Structurée", category: "Créatif", level: "Moyen", description: "Frapper un tambour ou une percussion en suivant une séquence de cartes visuelles (ex: lent-rapide-lent).", tags_profil: ["Musique", "Rythme", "Répétition", "Séquence", "Sonore", "Moteur"], routine_steps: [{ text: "Choisir la carte de rythme (visuel de la séquence).", visual: "🎼 Carte Rythme" }, { text: "Frapper la percussion en suivant le premier rythme (ex: 3x lent).", visual: "🥁 Frapper lent" }, { text: "Frapper la percussion en suivant le deuxième rythme (ex: 5x rapide).", visual: "⚡ Frapper rapide" }, { text: "Échanger l'instrument avec l'adulte (social/partage).", visual: "🤝 Partager" }] },
+            { id: 16, name: "La Recette Visuelle Simple", category: "Pratique", level: "Élevé", description: "Préparer un goûter simple (mélanger des ingrédients) en suivant une routine visuelle étape par étape.", tags_profil: ["Cuisine", "Séquence", "Logique", "motricité fine", "visuel", "mesure"], routine_steps: [{ text: "Laver les mains (séquence d'hygiène).", visual: "🧼 Lavage mains" }, { text: "Mesurer les ingrédients (cuillère/tasse).", visual: "🥄 Mesurer" }, { text: "Mélanger les ingrédients (apport moteur fin).", visual: "🥣 Mélanger" }, { text: "Goûter la préparation (sensoriel oral).", visual: "😋 Goûter" }] },
+            { id: 17, name: "Peinture au Coton-Tige", category: "Créatif", level: "Faible", description: "Activité artistique demandant une grande précision motrice fine. Focalise sur la couleur et la pression.", tags_profil: ["Fin", "motricité fine", "couleurs", "visuel", "précision", "textures"], routine_steps: [{ text: "Choisir 3 couleurs de peinture.", visual: "🌈 Choisir couleur" }, { text: "Prendre un coton-tige (pince fine).", visual: "🥢 Coton-tige" }, { text: "Faire des points précis sur la feuille.", visual: "⚫ Faire des points" }, { text: "Laisser sécher et observer le résultat.", visual: "👀 Observer" }] },
         ];
 
-        // =========================================================================
-        //  LOGIQUE DE L'APPLICATION
-        // =========================================================================
+
         const activitiesGrid = document.getElementById('activities-grid');
         const categoryFilter = document.getElementById('category-filter');
         const levelFilter = document.getElementById('level-filter');
-        // NOUVEAUX ÉLÉMENTS DE SAISIE LIBRE
         const attractionsInput = document.getElementById('attractions-input');
         const calmingInput = document.getElementById('calming-input');
         const needsInput = document.getElementById('needs-input');
         const noResultsMessage = document.getElementById('no-results-message');
 
-        /**
-         * Crée et retourne l'élément DOM pour une carte d'activité.
-         * @param {object} activity - L'objet activité.
-         * @returns {HTMLElement} La carte d'activité.
-         */
         function createActivityCard(activity) {
             const card = document.createElement('div');
-            // Ajout de la classe de survol dynamique
             const hoverClass = getCategoryHoverClass(activity.category); 
             card.className = `activity-card bg-white p-5 rounded-xl border border-gray-100 shadow-lg flex flex-col justify-between ${hoverClass}`;
             card.innerHTML = `
@@ -344,40 +512,26 @@
                 </div>
                 <div class="flex justify-between items-center text-sm mt-3 pt-3 border-t border-gray-100">
                     <span class="text-indigo-600 font-medium">Structure: ${activity.level}</span>
-                    <button onclick="showDetails(${activity.id})" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-sm transition duration-150 shadow-md">Détails de la Routine</button>
+                    <button onclick="showDetailsModal(${activity.id})" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-sm transition duration-150 shadow-md">Détails de la Routine</button>
                 </div>
             `;
             return card;
         }
 
-        /**
-         * Retourne les classes Tailwind pour styliser la pastille de catégorie avec des couleurs pastel douces.
-         * @param {string} category - Le nom de la catégorie.
-         * @returns {string} Les classes CSS.
-         */
         function getCategoryStyle(category) {
             switch (category) {
-                // Couleurs plus douces (Blue/Cyan)
                 case 'Régulation': return 'bg-cyan-100 text-cyan-700';
-                // Couleurs plus douces (Green/Emerald)
                 case 'Social': return 'bg-emerald-100 text-emerald-700'; 
-                // Couleurs plus douces (Orange/Rose)
                 case 'Moteur': return 'bg-pink-100 text-pink-700'; 
-                // Couleurs plus douces (Purple/Fuchsia)
                 case 'Intérêt': return 'bg-purple-100 text-purple-700';
                 case 'Technologie': return 'bg-teal-100 text-teal-700';
                 case 'Culture': return 'bg-yellow-100 text-yellow-700';
-                case 'Créatif': return 'bg-fuchsia-100 text-fuchsia-700'; // Nouveau
-                case 'Pratique': return 'bg-orange-100 text-orange-700'; // Nouveau
+                case 'Créatif': return 'bg-fuchsia-100 text-fuchsia-700'; 
+                case 'Pratique': return 'bg-orange-100 text-orange-700'; 
                 default: return 'bg-gray-100 text-gray-700';
             }
         }
         
-        /**
-         * Retourne la classe CSS personnalisée pour l'effet de survol (hover) basé sur la catégorie.
-         * @param {string} category - Le nom de la catégorie.
-         * @returns {string} La classe CSS de survol.
-         */
         function getCategoryHoverClass(category) {
             switch (category) {
                 case 'Régulation': return 'hover-reg'; 
@@ -388,18 +542,12 @@
             }
         }
 
-        /**
-         * Analyse le texte libre des inputs et retourne un objet avec les mots-clés séparés par catégorie.
-         * Les mots-clés sont nettoyés, mis en minuscules et uniques.
-         * @returns {{attractions: Array<string>, calming: Array<string>, needs: Array<string>}}
-         */
         function getKeywordsFromInput() {
             const processInput = (inputElement) => {
-                // Séparer par virgules, espaces ou nouvelles lignes
                 return inputElement.value.toLowerCase()
                     .split(/[\s,]+/) 
                     .map(kw => kw.trim())
-                    .filter(kw => kw.length > 2 && kw !== 'et'); // Filtrer les mots courts et courants comme 'et'
+                    .filter(kw => kw.length > 2 && kw !== 'et');
             };
 
             return {
@@ -409,41 +557,28 @@
             };
         }
 
-        /**
-         * Calcule le score de pertinence d'une activité par rapport aux mots-clés de l'utilisateur.
-         * Le poids est donné par: Attractions (3) > Calming (2) > Needs (1).
-         * @param {object} activity - L'objet activité.
-         * @param {object} structuredKeywords - Mots-clés séparés (attractions, calming, needs).
-         * @returns {number} Le score de pertinence.
-         */
         function calculateScore(activity, structuredKeywords) {
             let score = 0;
             const activityTags = activity.tags_profil.map(tag => tag.toLowerCase().trim());
             
-            // Fonction utilitaire mise à jour pour inclure les synonymes.
             const hasMatch = (activityTags, userKeywords) => {
                 if (userKeywords.length === 0) return false;
                 
-                // Créer un ensemble de tous les mots à tester (mots utilisateurs + leurs synonymes)
                 const allWordsToTest = new Set();
                 userKeywords.forEach(kw => {
                     allWordsToTest.add(kw);
-                    // Ajouter les synonymes définis dans la carte SYNONYM_MAP
                     (SYNONYM_MAP[kw] || []).forEach(syn => allWordsToTest.add(syn));
                 });
 
                 const wordsArray = Array.from(allWordsToTest);
 
-                // Vérifier si un des tags d'activité matche n'importe quel mot de la liste étendue.
                 return activityTags.some(activityTag => 
                     wordsArray.some(testWord => {
-                        // Correspondance partielle (ex: 'tri' match 'tris' ou 'triangulaire')
                         return activityTag.includes(testWord) || testWord.includes(activityTag); 
                     })
                 );
             };
 
-            // Poids des catégories (priorité aux Intérêts forts et à la Régulation)
             if (hasMatch(activityTags, structuredKeywords.attractions)) {
                 score += 3;
             }
@@ -457,110 +592,85 @@
             return score;
         }
 
-        /**
-         * Affiche un message simulant une routine détaillée pour l'activité.
-         */
-        function showDetails(id) {
+        window.showDetailsModal = function(id) {
             const activity = activitiesData.find(a => a.id === id);
-            if (activity) {
-                
-                // Générer le HTML pour les étapes de la routine
-                let routineHtml = activity.routine_steps.map((step, index) => {
-                    // Séparer l'emoji du texte de la visualisation pour l'affichage stylisé
-                    const [icon, ...visualTextParts] = step.visual.split(' ');
-                    const visualText = visualTextParts.join(' ');
+            if (!activity) return;
 
-                    return `
-                        <div class="flex items-start mb-4 p-3 bg-gray-100 rounded-lg shadow-sm">
-                            <!-- Affichage du pictogramme/emoji -->
-                            <div class="text-3xl mr-4 p-2 bg-white rounded-full border border-gray-200 shadow-md flex-shrink-0 w-12 h-12 flex items-center justify-center">${icon}</div>
-                            
-                            <div class="flex-1">
-                                <h6 class="font-semibold text-gray-800 text-sm">Étape ${index + 1}:</h6>
-                                <p class="text-base text-gray-700 font-medium">${step.text}</p>
-                                <!-- Texte descriptif pour le pictogramme (si besoin d'une image réelle) -->
-                                <p class="text-xs text-gray-500 mt-1 italic">Idée visuelle : ${visualText}</p>
-                            </div>
+            // Logique pour le modal
+            let routineHtml = activity.routine_steps.map((step, index) => {
+                const parts = step.visual.split(' ');
+                const icon = parts[0];
+                const visualText = parts.slice(1).join(' ');
+
+                return `
+                    <div class="flex items-start mb-4 p-3 bg-gray-100 rounded-lg shadow-sm">
+                        <div class="text-3xl mr-4 p-2 bg-white rounded-full border border-gray-200 shadow-md flex-shrink-0 w-12 h-12 flex items-center justify-center">${icon}</div>
+                        <div class="flex-1">
+                            <h6 class="font-semibold text-gray-800 text-sm">Étape ${index + 1}:</h6>
+                            <p class="text-base text-gray-700 font-medium">${step.text}</p>
+                            <p class="text-xs text-gray-500 mt-1 italic">Idée visuelle : ${visualText}</p>
                         </div>
-                    `;
-                }).join('');
-
-
-                // Utilisation d'une boîte de dialogue personnalisée simple pour éviter alert()
-                const detailsBox = document.createElement('div');
-                detailsBox.className = "fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto";
-                detailsBox.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full my-8 transform transition-all">
-                        <h4 class="text-3xl font-bold text-indigo-700 mb-2">${activity.name}</h4>
-                        <span class="inline-block text-sm font-medium px-3 py-1 rounded-full ${getCategoryStyle(activity.category)} mb-4">${activity.category} - Structure: ${activity.level}</span>
-
-                        <p class="text-base text-gray-600 mb-6 border-b pb-4">${activity.description}</p>
-                        
-                        <h5 class="font-bold text-xl text-pink-600 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            SÉQUENCE VISUELLE DÉTAILLÉE (avec idées de pictogrammes)
-                        </h5>
-                        
-                        <div class="space-y-3 mb-6">
-                            ${routineHtml}
-                        </div>
-
-                        <hr class="mb-4">
-                        <p class="font-semibold text-gray-700 text-sm">Tags Profils Associés: <span class="font-normal text-indigo-500">${activity.tags_profil.join(', ')}</span></p>
-
-                        <button onclick="this.closest('.fixed').remove()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">Fermer la Routine</button>
                     </div>
                 `;
-                document.body.appendChild(detailsBox);
-            }
+            }).join('');
+
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = `
+                <h4 class="text-3xl font-bold text-indigo-700 mb-2">${activity.name}</h4>
+                <span class="inline-block text-sm font-medium px-3 py-1 rounded-full ${getCategoryStyle(activity.category)} mb-4">${activity.category} - Structure: ${activity.level}</span>
+
+                <p class="text-base text-gray-600 mb-6 border-b pb-4">${activity.description}</p>
+                
+                <h5 class="font-bold text-xl text-pink-600 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    SÉQUENCE VISUELLE DÉTAILLÉE
+                </h5>
+                
+                <div class="space-y-3 mb-6">
+                    ${routineHtml}
+                </div>
+
+                <hr class="mb-4">
+                <p class="font-semibold text-gray-700 text-sm">Tags Profils Associés: <span class="font-normal text-indigo-500">${activity.tags_profil.join(', ')}</span></p>
+
+                <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">Fermer la Routine</button>
+            `;
+            document.getElementById('details-modal').classList.remove('hidden');
         }
         
-        /**
-         * Filtre, score et affiche les activités.
-         */
         function filterActivities() {
             const selectedCategory = categoryFilter.value.split(' ')[0];
             const selectedLevel = levelFilter.value.split(' ')[0];
             
-            // 1. Récupérer les mots-clés structurés de l'utilisateur
             const structuredKeywords = getKeywordsFromInput();
-            // Vérifier si l'utilisateur a saisi au moins un mot-clé dans un des champs
             const hasUserKeywords = structuredKeywords.attractions.length > 0 || structuredKeywords.calming.length > 0 || structuredKeywords.needs.length > 0;
 
-            // 2. Filtrage (par catégorie/niveau) et Scoring (par mots-clés)
             const scoredActivities = activitiesData
                 .map(activity => {
                     const categoryMatch = selectedCategory === 'all' || activity.category === selectedCategory;
                     const levelMatch = selectedLevel === 'all' || activity.level === selectedLevel;
                     
                     if (categoryMatch && levelMatch) {
-                        // Calculer le score uniquement si les filtres standards correspondent
                         const score = calculateScore(activity, structuredKeywords);
                         return { ...activity, score: score };
                     }
-                    return { ...activity, score: -1 }; // Marquer comme non pertinent si les filtres standards ne correspondent pas
+                    return { ...activity, score: -1 };
                 })
                 .filter(activity => {
-                    // Les activités qui n'ont pas matché les filtres standard sont déjà marquées avec score = -1
                     if (activity.score === -1) return false;
-
-                    // Si l'utilisateur a saisi des mots-clés, on garde uniquement ceux avec un score > 0 (match de profil).
                     if (hasUserKeywords) {
                         return activity.score > 0;
                     }
-                    // Si pas de mots-clés, on garde toutes les activités qui ont passé les filtres standard (score >= 0)
                     return true; 
                 });
             
-            // 3. Tri : Priorité au score (DESC), puis par nom (ASC, pour la stabilité)
             scoredActivities.sort((a, b) => {
                 if (b.score !== a.score) {
-                    return b.score - a.score; // Score DESC (les meilleurs scores sont en haut)
+                    return b.score - a.score;
                 }
-                return a.name.localeCompare(b.name); // Nom ASC
+                return a.name.localeCompare(b.name);
             });
 
-            // 4. Affichage
             activitiesGrid.innerHTML = '';
 
             if (scoredActivities.length === 0) {
@@ -573,16 +683,14 @@
             }
         }
 
-        // Écouteurs d'événements pour les filtres standard
+        // Écouteurs pour le Catalogue
         categoryFilter.addEventListener('change', filterActivities);
         levelFilter.addEventListener('change', filterActivities);
-        
-        // Écouteurs d'événements pour les NOUVEAUX champs de saisie libre (sur l'événement 'input' pour un filtrage en temps réel)
         attractionsInput.addEventListener('input', filterActivities);
         calmingInput.addEventListener('input', filterActivities);
         needsInput.addEventListener('input', filterActivities);
 
-        // Initialisation : Afficher les activités au chargement
+        // Initialisation : Afficher le catalogue au chargement
         filterActivities();
     </script>
 </body>

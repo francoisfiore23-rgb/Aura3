@@ -3,713 +3,539 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application de Suivi et Catalogue d'Activités (TSA)</title>
-    <!-- Chargement de Tailwind CSS via CDN pour le style -->
+    <title>Application de Suivi d'Observations</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script type="module">
+        // CORRECTION FINALE: Suppression de 'Clipboard' et des autres icônes problématiques.
+        // Seules les icônes nécessaires (Search, Plus, X) qui sont stables sont conservées.
+        import { createIcons, Search, Plus, X } from 'https://unpkg.com/lucide@latest';
+        createIcons({ icons: { Search, Plus, X } });
+    </script>
     <style>
-        /* Configuration de la police Inter pour une meilleure lisibilité */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #eef4f9; /* Fond général plus doux */
+            background-color: #f7f9fb;
         }
-        /* Style pour les cartes (cartes de shadow et transitions) */
-        .activity-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            border: 1px solid #e0e7ff; /* Bordure douce */
+        /* Custom styles for the PDF content to ensure clean printing */
+        #report-content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
-        .activity-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 20px rgba(126, 114, 218, 0.2); /* Ombre plus douce et colorée */
+        .observation-card {
+            page-break-inside: avoid; /* Helps keep observation cards together */
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+            padding: 16px;
+            border-radius: 8px;
         }
-        /* Couleurs de fond des cartes au survol */
-        .hover-reg:hover { background-color: #e0f2fe; }
-        .hover-social:hover { background-color: #d1fae5; }
-        .hover-moteur:hover { background-color: #ffe4e6; }
-        .hover-interet:hover { background-color: #f3e8ff; }
-        /* Style pour les onglets */
-        .tab-button {
-            transition: all 0.15s;
-            border-bottom: 3px solid transparent;
+        /* Style for the notification box */
+        #notification-box {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            max-width: 350px;
+            z-index: 1000;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            transform: translateX(100%);
+            opacity: 0;
         }
-        .tab-button.active {
-            border-color: #4f46e5;
-            color: #4f46e5;
-            font-weight: 600;
+        #notification-box.show {
+            transform: translateX(0);
+            opacity: 1;
         }
-        /* Style pour rendre la navigation sticky */
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 10;
+        /* Spinner for loading state */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
-</head>
-<body class="p-4 md:p-8">
 
-    <div class="max-w-7xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
-        <header class="mb-8 text-center">
-            <h1 class="text-4xl font-extrabold text-indigo-700 mb-2">Application de Suivi d'Activités Adaptées (TSA)</h1>
-            <p class="text-gray-600">Catalogue, Profilage et Journal d'Observations.</p>
-        </header>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-        <!-- NAVIGATION PAR ONGLET (Maintenant Sticky) -->
-        <nav class="sticky-nav flex border-b border-gray-200 bg-white pt-2 mb-8 -mx-6 px-6 shadow-md">
-            <button id="tab-catalogue" onclick="switchTab('catalogue')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600">
-                📚 Catalogue d'Activités
-            </button>
-            <button id="tab-observations" onclick="switchTab('observations')" class="tab-button px-4 py-2 text-lg text-gray-500 hover:text-indigo-600">
-                📝 Journal d'Observations
-            </button>
-        </nav>
-        <!-- FIN NAVIGATION PAR ONGLET -->
-
-        <!-- CONTENU DU CATALOGUE (Défaut) -->
-        <div id="view-catalogue" class="tab-content">
-            <!-- ZONE DE SAISIE LIBRE DU PROFIL DE L'ENFANT (Couleur Pastel) -->
-            <div class="flex flex-col gap-4 mb-6 p-6 bg-purple-100 rounded-xl border border-purple-300 shadow-md">
-                <h2 class="text-xl font-bold text-purple-800 border-b border-purple-300 pb-2 mb-2">Décrire le Profil de l'Enfant (Saisie Libre)</h2>
-                <p class="text-sm text-purple-700 mb-2">
-                    Utilisez des mots-clés séparés par des virgules pour affiner les recommandations (ex: "eau, sauter, trains"). Le système gère les synonymes.
-                </p>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label for="attractions-input" class="block text-sm font-medium text-gray-700 mb-1">🎯 Ce qui l'attire (Intérêts forts) :</label>
-                        <textarea id="attractions-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Dinosaures, trains, couleurs vives, logique, tri"></textarea>
-                    </div>
-                    <div>
-                        <label for="calming-input" class="block text-sm font-medium text-gray-700 mb-1">🧘 Ce qui l'apaise (Régulation sensorielle) :</label>
-                        <textarea id="calming-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Bruits doux, massage, eau, routines strictes, Proprioceptif"></textarea>
-                    </div>
-                    <div>
-                        <label for="needs-input" class="block text-sm font-medium text-gray-700 mb-1">⚙️ Ses besoins/difficultés (Social/Moteur) :</label>
-                        <textarea id="needs-input" rows="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 shadow-sm" placeholder="ex: Motricité fine, Séquence, Répétition, interagir, Kinesthésique"></textarea>
-                    </div>
-                </div>
-            </div>
-            <!-- FIN ZONE DE SAISIE LIBRE -->
-
-            <!-- Zone de Filtres Thématiques/Structure (Couleur Pastel) -->
-            <div class="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-indigo-100 rounded-lg border border-indigo-300 shadow-md">
-                <!-- Filtre par Catégorie Thématique -->
-                <div class="flex-1">
-                    <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-1">Thème d'Activité</label>
-                    <select id="category-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                        <option value="all">Tous les Thèmes</option>
-                        <option value="Régulation">🧘 Régulation Sensorielle</option>
-                        <option value="Social">🤝 Compétences Sociales</option>
-                        <option value="Moteur">🖐️ Développement Moteur</option>
-                        <option value="Intérêt">🧠 Intérêts Spécifiques</option>
-                        <option value="Technologie">💻 Technologie</option>
-                        <option value="Culture">📚 Culture</option>
-                        <option value="Créatif">🎨 Créatif/Arts</option>
-                        <option value="Pratique">🔪 Pratique/Cuisine</option>
-                    </select>
-                </div>
-
-                <!-- Filtre par Niveau d'Autonomie/Structure -->
-                <div class="flex-1">
-                    <label for="level-filter" class="block text-sm font-medium text-gray-700 mb-1">Niveau de Structure</label>
-                    <select id="level-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                        <option value="all">Tous les Niveaux</option>
-                        <option value="Faible">Faible (Exploration Libre)</option>
-                        <option value="Moyen">Moyen (Séquences Simples)</option>
-                        <option value="Élevé">Élevé (Routine Structurée)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Grille des Activités -->
-            <div id="activities-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Les cartes d'activités seront injectées ici par JavaScript -->
-            </div>
-
-            <!-- Message en cas de non-résultat -->
-            <p id="no-results-message" class="text-center text-xl text-gray-500 mt-10 hidden">
-                Aucune activité ne correspond à vos critères de recherche.
-            </p>
-        </div>
-        <!-- FIN CONTENU DU CATALOGUE -->
-
-
-        <!-- CONTENU DU JOURNAL D'OBSERVATIONS (Masqué par défaut) -->
-        <div id="view-observations" class="tab-content hidden">
-            <!-- Formulaire de Nouvelle Observation -->
-            <div class="bg-green-50 p-6 rounded-xl border border-green-300 mb-8 shadow-lg">
-                <h2 class="text-2xl font-bold text-green-800 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    Ajouter une Nouvelle Observation
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label for="obs-date" class="block text-sm font-medium text-gray-700">Date de l'Observation</label>
-                        <input type="date" id="obs-date" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                    </div>
-                    <div>
-                        <label for="obs-aspect" class="block text-sm font-medium text-gray-700">Aspect du Profil Concerné</label>
-                        <select id="obs-aspect" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                            <option value="">-- Choisir un Aspect --</option>
-                            <option value="Régulation">🧘 Régulation Sensorielle</option>
-                            <option value="Social">🤝 Compétences Sociales</option>
-                            <option value="Moteur">🖐️ Développement Moteur</option>
-                            <option value="Intérêt">🧠 Intérêts Spécifiques</option>
-                            <option value="Général">🔍 Général/Autre</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="obs-status" class="block text-sm font-medium text-gray-700">Statut du Comportement</label>
-                        <select id="obs-status" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                            <option value="">-- Choisir un Statut --</option>
-                            <option value="Amélioration">🟢 Amélioration / Acquisition</option>
-                            <option value="Stagnation">🟡 Stagnation / Maintien</option>
-                            <option value="Régression">🔴 Régression / Difficulté</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label for="obs-note" class="block text-sm font-medium text-gray-700">Note Détaillée (Max 500 caractères)</label>
-                    <textarea id="obs-note" rows="3" maxlength="500" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Ex: A pu tolérer le bruit du mixeur pendant 15 secondes, ce qui est une nette amélioration par rapport à la semaine dernière."></textarea>
-                </div>
-                
-                <button onclick="saveObservation()" class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150">
-                    Enregistrer l'Observation
-                </button>
-            </div>
-
-            <!-- Liste des Observations Passées -->
-            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m-9 12h9m-9 0a2 2 0 002-2V5m-9 4h4m-4 8h4"></path></svg>
-                Historique des Observations
-            </h2>
-            <div id="observations-list" class="space-y-4">
-                <p id="loading-observations" class="text-center text-gray-500">Chargement de l'historique...</p>
-                <!-- Les observations seront injectées ici par JavaScript -->
-            </div>
-            
-            <div id="auth-info" class="mt-8 text-center text-sm text-gray-500">
-                <!-- Les informations d'authentification seront affichées ici -->
-            </div>
-
-        </div>
-        <!-- FIN CONTENU DU JOURNAL D'OBSERVATIONS -->
-
-    </div>
-
-    <!-- MODAL POUR LES DÉTAILS DE LA ROUTINE (Même fonction qu'avant, elle doit être accessible globalement) -->
-    <div id="details-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div id="modal-content" class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full my-8 transform transition-all">
-            <!-- Le contenu sera injecté par showDetails() -->
-            <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-        </div>
-    </div>
-    
+    <!-- Firebase SDKs -->
     <script type="module">
-        // =========================================================================
-        //  FIREBASE ET PERSISTENCE DES DONNÉES (Mandatory setup)
-        // =========================================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, collection, query, addDoc, 
-            onSnapshot, orderBy, serverTimestamp 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        let db, auth, userId = null;
-        let isAuthReady = false;
+        import { getFirestore, doc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* mock config */ };
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        if (firebaseConfig) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            console.log("Firebase initialized.");
+        // --- APPLICATION STATE & DB SETUP ---
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let unsubscribe = null;
+        
+        // Log level for debugging Firestore
+        setLogLevel('Debug');
 
-            // Écouteur de l'état d'authentification
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    document.getElementById('auth-info').textContent = `Connecté (UserID: ${userId})`;
-                    console.log("User authenticated:", userId);
-                    isAuthReady = true;
-                    // Une fois authentifié, on commence à écouter les observations
-                    setupObservationListener();
-                } else {
-                    // Si non authentifié, tente de se connecter
-                    try {
-                         if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            // En l'absence de token, connexion anonyme comme solution de repli
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Authentication Error:", error);
-                        // Fallback pour un userId aléatoire si l'authentification échoue
-                        userId = crypto.randomUUID();
-                        document.getElementById('auth-info').textContent = `Session Locale (ID temporaire: ${userId.substring(0, 8)}...)`;
-                        isAuthReady = true;
-                    }
-                }
-            });
-        } else {
-             // Cas où Firebase n'est pas configuré (mode développement sans persist.)
-            console.error("Firebase config is missing. Observations cannot be saved.");
-            userId = crypto.randomUUID(); // ID local temporaire
-            isAuthReady = true;
-            document.getElementById('auth-info').textContent = `Mode déconnecté (UserID temporaire: ${userId.substring(0, 8)}...)`;
+
+        /**
+         * Utility to display temporary notifications (replaces alert()).
+         * @param {string} message The message to display.
+         * @param {'success' | 'error' | 'loading'} type The type of notification.
+         */
+        function showNotification(message, type = 'success') {
+            const box = document.getElementById('notification-box');
+            const iconContainer = document.getElementById('notification-icon');
+            const messageElement = document.getElementById('notification-message');
+            
+            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100');
+            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800');
+            iconContainer.innerHTML = '';
+            
+            let bgColor, textColor, iconHtml;
+
+            switch (type) {
+                case 'success':
+                    bgColor = 'bg-green-100';
+                    textColor = 'text-green-800';
+                    iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                    // FIX: Utilisation de l'icône 'x' déjà importée pour l'erreur.
+                    iconHtml = '<svg class="w-5 h-5" name="x"></svg>'; 
+                    break;
+                case 'loading':
+                    bgColor = 'bg-blue-100';
+                    textColor = 'text-blue-800';
+                    iconHtml = '<div class="loader"></div>';
+                    break;
+                default:
+                    bgColor = 'bg-gray-100';
+                    textColor = 'text-gray-800';
+                    iconHtml = '';
+            }
+            
+            box.classList.add(bgColor, textColor);
+            iconContainer.innerHTML = iconHtml;
+            messageElement.textContent = message;
+
+            // Show the box
+            box.classList.add('show');
+            
+            // Hide after 5 seconds, unless it's a loading message
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    box.classList.remove('show');
+                }, 5000);
+            } else {
+                // If it's a loading message, we rely on the calling function to hide it
+            }
         }
 
-
-        // =========================================================================
-        //  LOGIQUE DU JOURNAL D'OBSERVATIONS (Firestore CRUD)
-        // =========================================================================
-        
         /**
-         * Configuration de l'écouteur en temps réel pour les observations.
+         * Function to set up Firebase and Authentication.
          */
-        function setupObservationListener() {
-            if (!db || !userId) {
-                console.error("Firestore or UserID not ready.");
-                return;
+        async function setupFirebase() {
+            try {
+                if (app) return; // Prevent double initialization
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // Start listening to data only after auth is confirmed
+                        startDataListener();
+                        // Display User ID on UI
+                        document.getElementById('user-id-display').textContent = `ID Utilisateur: ${userId}`;
+                    } else {
+                        userId = null;
+                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: Non authentifié';
+                        renderObservations([]); // Clear observations if auth fails
+                    }
+                    // Attach event listeners for the new button
+                    document.getElementById('generatePdfButton').addEventListener('click', generatePdfReport);
+                });
+
+            } catch (error) {
+                console.error("Erreur de configuration Firebase ou d'authentification:", error);
+                showNotification(`Erreur Firebase: ${error.message}`, 'error');
             }
+        }
 
-            const observationCollectionPath = `artifacts/${appId}/users/${userId}/observations`;
-            const q = query(collection(db, observationCollectionPath), orderBy("timestamp", "desc"));
-            
-            const listElement = document.getElementById('observations-list');
-            listElement.innerHTML = ''; // Nettoyer le message de chargement
+        /**
+         * Gets the collection reference path for public data.
+         * Using public collection path as this is a collaborative app.
+         */
+        function getCollectionRef() {
+            if (!db || !userId) return null;
+            return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
+        }
 
-            onSnapshot(q, (snapshot) => {
+        /**
+         * Starts the real-time listener for observations.
+         */
+        function startDataListener() {
+            if (unsubscribe) {
+                unsubscribe(); // Stop previous listener if any
+            }
+            const colRef = getCollectionRef();
+            if (!colRef) return;
+
+            // Query: all observations, sorted by creation date (newest first)
+            const q = query(colRef, orderBy('createdAt', 'desc'));
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
                 const observations = [];
-                snapshot.forEach((doc) => {
+                snapshot.forEach(doc => {
                     observations.push({ id: doc.id, ...doc.data() });
                 });
                 renderObservations(observations);
             }, (error) => {
-                console.error("Error fetching observations: ", error);
-                listElement.innerHTML = '<p class="text-center text-red-500">Erreur lors du chargement des observations. Veuillez vérifier la console.</p>';
+                console.error("Erreur de l'écouteur Firestore:", error);
+                showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
             });
         }
 
-
         /**
-         * Enregistre une nouvelle observation dans Firestore.
-         */
-        window.saveObservation = async function() {
-            if (!isAuthReady || !db || !userId) {
-                 console.error("Cannot save: Authentication or Database not ready.");
-                 // Utiliser une boîte modale simple au lieu d'alert()
-                 showCustomMessage("Erreur d'enregistrement", "La base de données n'est pas prête. Veuillez attendre l'authentification.", 'error');
-                 return;
-            }
-
-            const date = document.getElementById('obs-date').value;
-            const aspect = document.getElementById('obs-aspect').value;
-            const status = document.getElementById('obs-status').value;
-            const note = document.getElementById('obs-note').value.trim();
-
-            if (!date || !aspect || !status || !note) {
-                 showCustomMessage("Champs manquants", "Veuillez remplir la date, l'aspect, le statut et la note avant d'enregistrer.", 'warning');
-                 return;
-            }
-
-            try {
-                const observation = {
-                    date: date, // 'YYYY-MM-DD'
-                    aspect: aspect,
-                    status: status,
-                    note: note,
-                    timestamp: serverTimestamp(), // Firestore field for proper sorting
-                };
-                
-                const observationCollectionPath = `artifacts/${appId}/users/${userId}/observations`;
-                await addDoc(collection(db, observationCollectionPath), observation);
-                
-                // Réinitialiser le formulaire après succès
-                document.getElementById('obs-date').value = new Date().toISOString().slice(0, 10);
-                document.getElementById('obs-aspect').value = '';
-                document.getElementById('obs-status').value = '';
-                document.getElementById('obs-note').value = '';
-
-                showCustomMessage("Succès!", "Observation enregistrée avec succès.", 'success');
-
-            } catch (e) {
-                console.error("Error adding document: ", e);
-                showCustomMessage("Erreur Firestore", "Échec de l'enregistrement de l'observation: " + e.message, 'error');
-            }
-        }
-
-        /**
-         * Affiche la liste des observations récupérées.
-         * @param {Array<object>} observations - Liste des observations.
+         * Renders the list of observations into the DOM.
+         * @param {Array<Object>} observations Array of observation objects.
          */
         function renderObservations(observations) {
-            const listElement = document.getElementById('observations-list');
-            listElement.innerHTML = '';
-
+            const listContainer = document.getElementById('observations-list');
+            if (!listContainer) return;
+            
             if (observations.length === 0) {
-                listElement.innerHTML = `
-                    <div class="bg-gray-100 p-6 rounded-lg text-center text-gray-600">
-                        <p class="font-semibold mb-1">Aucune observation enregistrée pour l'instant.</p>
-                        <p class="text-sm">Utilisez le formulaire ci-dessus pour commencer le suivi.</p>
-                    </div>
+                listContainer.innerHTML = `
+                    <p class="text-center text-gray-500 py-8">
+                        Aucune observation enregistrée. Utilisez le formulaire ci-dessus pour en ajouter une.
+                    </p>
                 `;
                 return;
             }
 
-            observations.forEach(obs => {
-                listElement.appendChild(createObservationItem(obs));
-            });
-        }
-
-        /**
-         * Crée l'élément DOM pour une observation.
-         * @param {object} obs - L'objet observation.
-         * @returns {HTMLElement} L'élément de liste.
-         */
-        function createObservationItem(obs) {
-            const item = document.createElement('div');
-            
-            let statusColor;
-            let statusIcon;
-            switch (obs.status) {
-                case 'Amélioration': statusColor = 'border-green-400 bg-green-50'; statusIcon = '🟢'; break;
-                case 'Stagnation': statusColor = 'border-yellow-400 bg-yellow-50'; statusIcon = '🟡'; break;
-                case 'Régression': statusColor = 'border-red-400 bg-red-50'; statusIcon = '🔴'; break;
-                default: statusColor = 'border-gray-400 bg-gray-50'; statusIcon = '⚫';
-            }
-
-            item.className = `p-4 rounded-lg border-l-4 ${statusColor} shadow-md`;
-            item.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <h3 class="font-bold text-lg text-gray-800">${statusIcon} Observation sur l'aspect: ${obs.aspect}</h3>
-                    <span class="text-sm text-gray-500 font-medium">${obs.date}</span>
-                </div>
-                <p class="text-gray-700 mb-2 italic">${obs.note}</p>
-                <div class="text-xs text-gray-500 pt-2 border-t border-gray-200">
-                    Statut: <span class="font-semibold text-gray-700">${obs.status}</span>
-                </div>
-            `;
-            return item;
-        }
-
-
-        /**
-         * Fonction utilitaire pour afficher des messages personnalisés (au lieu d'alert).
-         */
-        function showCustomMessage(title, message, type) {
-            // Logique simple pour un message flottant (peut être amélioré)
-            const colorMap = {
-                'success': 'bg-green-500',
-                'warning': 'bg-yellow-500',
-                'error': 'bg-red-500',
-            };
-            const color = colorMap[type] || 'bg-indigo-500';
-
-            const toast = document.createElement('div');
-            toast.className = `fixed top-5 right-5 p-4 rounded-lg text-white shadow-xl z-50 transition-all duration-500 transform translate-y-0 ${color}`;
-            toast.innerHTML = `
-                <div class="font-bold">${title}</div>
-                <div class="text-sm">${message}</div>
-            `;
-            document.body.appendChild(toast);
-            
-            // Masquer et supprimer après 4 secondes
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-                setTimeout(() => toast.remove(), 500);
-            }, 4000);
-        }
-
-        // =========================================================================
-        //  LOGIQUE DE NAVIGATION PAR ONGLET
-        // =========================================================================
-        window.switchTab = function(tabName) {
-            console.log(`Switching to tab: ${tabName}`);
-            const tabs = ['catalogue', 'observations'];
-            tabs.forEach(tab => {
-                const view = document.getElementById(`view-${tab}`);
-                const button = document.getElementById(`tab-${tab}`);
-                
-                if (view && button) {
-                    if (tab === tabName) {
-                        view.classList.remove('hidden');
-                        button.classList.add('active');
-                    } else {
-                        view.classList.add('hidden');
-                        button.classList.remove('active');
-                    }
-                }
-            });
-        }
-
-        // =========================================================================
-        //  LOGIQUE DU CATALOGUE (Fonctionnalités déjà existantes)
-        // =========================================================================
-
-        const SYNONYM_MAP = {
-            "fin": ["motricité fine", "doigts", "perles", "pinces"], "fine": ["motricité fine", "doigts", "perles", "pinces"],
-            "global": ["motricité globale", "courir", "sauter", "ramper"], "kinesthésique": ["mouvement", "bouger", "sauter", "courir", "ramper"],
-            "proprioceptif": ["lourd", "pression", "massage", "serrer", "compression"], "eau": ["aquatique", "bulles", "lavage", "savon"],
-            "calme": ["détente", "silence", "paix", "doux", "apaisement"], "bruits doux": ["calme", "sonore", "silence", "écoute"],
-            "textures": ["sensoriel", "tactile", "toucher", "visqueux"], "séquence": ["routine", "étapes", "logique", "ordonner", "suivre"],
-            "répétition": ["rituel", "routine", "répéter", "circulaire"], "tri": ["classer", "catégoriser", "ordonner"],
-            "interagir": ["social", "communication", "jeu de rôle", "partager"], "émotions": ["sentiments", "social", "visages", "humeur"],
-            "blocs": ["construction", "lego", "duplo"], "trains": ["rail", "locomotive"], "dinosaures": ["dino", "fossiles"],
-            "musique": ["rythme", "tambour", "sonore", "chanter"], "cuisine": ["mélanger", "recette", "nourriture", "préparer"],
-        };
-
-        const activitiesData = [
-            { id: 1, name: "Le Coin Calme", category: "Régulation", level: "Faible", description: "Utilisation d'un sac de haricots et d'écouteurs pour l'isolation sonore. Focus sur l'autorégulation.", tags_profil: ["Calme", "Visuel", "Sonore", "solitude", "bruits doux"], routine_steps: [{ text: "Mettre les écouteurs (isolation sonore).", visual: "🎧 Écouteurs" }, { text: "S'asseoir sur le sac de haricots.", visual: "🛋️ Sac de haricots" }, { text: "Utiliser le timer (10 min).", visual: "⏲️ Timer/Sablier" }, { text: "Respirer 5 fois profondément (auto-régulation).", visual: "🌬️ Respirer" }] },
-            { id: 2, name: "Bac Sensoriel Thématique", category: "Régulation", level: "Moyen", description: "Explorer des textures (riz, pâtes, eau) avec un thème précis (ex: 'ferme'). Nécessite supervision initiale.", tags_profil: ["Répétition", "Visuel", "eau", "textures"], routine_steps: [{ text: "Installer le bac sensoriel (riz coloré).", visual: "🥣 Bac de riz" }, { text: "Utiliser des outils (pelles, tasses).", visual: "🥄 Outils" }, { text: "Remplir et vider les contenants.", visual: "🔄 Transvaser" }, { text: "Ranger les outils dans le bac.", visual: "🧹 Ranger" }] },
-            { id: 3, name: "Compression du Corps (Massage)", category: "Régulation", level: "Élevé", description: "Routine de pression profonde pour l'apport proprioceptif. Nécessite une séquence visuelle stricte.", tags_profil: ["Proprioceptif", "Calme", "Séquence", "massage", "lourd"], routine_steps: [{ text: "Placer le matelas ou le tapis au sol.", visual: "🧘 Tapis" }, { text: "Presser les jambes (5 secondes).", visual: "🦵 Pression jambe" }, { text: "Presser les bras (5 secondes).", visual: "💪 Pression bras" }, { text: "Se couvrir d'une couverture lourde (2 minutes).", visual: " Blankett" }] },
-            { id: 4, name: "Jeu de Cartes 'Émotions'", category: "Social", level: "Élevé", description: "Associer des visages à des étiquettes d'émotions. Routine d'apprentissage structurée.", tags_profil: ["Séquence", "Logique", "Visuel", "émotions", "contact visuel"], routine_steps: [{ text: "Choisir une carte émotion (ex: Joie).", visual: "😊 Carte émotion" }, { text: "Demander 'Comment il se sent ?'.", visual: "🗣️ Questionner" }, { text: "Faire l'expression du visage.", visual: "🎭 Mimer" }, { text: "Ranger la carte dans la boîte.", visual: "📦 Ranger" }] },
-            { id: 5, name: "L'Histoire Sociale du Matin", category: "Social", level: "Moyen", description: "Lecture d'une histoire courte décrivant une interaction sociale simple (ex: demander de l'aide).", tags_profil: ["Visuel", "interagir", "communication"], routine_steps: [{ text: "S'asseoir calmement (préparer le corps).", visual: "🪑 S'asseoir" }, { text: "Écouter l'histoire (support visuel du livre).", visual: "📖 Lire" }, { text: "Discuter du 'problème' dans l'histoire.", visual: "🤔 Analyser" }, { text: "Mimer la solution (ex: 'demander de l'aide').", visual: "🙏 Demander aide" }] },
-            { id: 6, name: "Jeu de Rôle Séquencé (Magasin)", category: "Social", level: "Élevé", description: "Suivre une série d'étapes visuelles pour simuler une transaction simple.", tags_profil: ["Séquence", "Logique", "attente", "social"], routine_steps: [{ text: "Prendre 1 jeton (monnaie pour l'échange).", visual: "🪙 Jeton" }, { text: "Choisir un article (repère visuel du produit).", visual: "🛒 Choisir" }, { text: "Attendre son tour (visuel d'attente).", visual: "⏳ Attendre" }, { text: "Donner le jeton et dire 'Merci'.", visual: "🤝 Dire merci" }] },
-            { id: 7, name: "Mosaïque de Perles à Enfiler", category: "Moteur", level: "Moyen", description: "Exercice de motricité fine pour améliorer la coordination œil-main. Résultat visuel immédiat.", tags_profil: ["Fin", "Répétition", "motricité fine"], routine_steps: [{ text: "Séparer les perles par couleur (tri visuel).", visual: "🔴 Tri couleur" }, { text: "Enfiler les perles selon un motif simple.", visual: "🧵 Enfiler" }, { text: "Compter les perles utilisées (maths).", visual: "🔢 Compter" }, { text: "Exposer la création (fierté).", visual: "🖼️ Montrer" }] },
-            { id: 8, name: "Circuit d'Obstacles Simple", category: "Moteur", level: "Faible", description: "Marcher, sauter, ramper. Excellent pour l'énergie kinesthésique. Supervision minimale.", tags_profil: ["Moteur", "Kinesthésique", "sauter", "courir", "ramper", "global"], routine_steps: [{ text: "Passer sous un tunnel ou un drap.", visual: " Crawling" }, { text: "Marcher sur une ligne de ruban adhésif.", visual: "🚶 Marcher" }, { text: "Sauter 3 fois sur place (apport vestibulaire).", visual: "🤸 Sauter" }, { text: "Retour au point de départ.", visual: "🏁 Fin" }] },
-            { id: 9, name: "Dictionnaire des Dinosaures", category: "Intérêt", level: "Moyen", description: "Organiser des fiches d'animaux (ou tout autre intérêt) par taille ou période. Activité de tri structurée.", tags_profil: ["Tri", "Logique", "Dinosaures", "animaux"], routine_steps: [{ text: "Choisir 5 fiches 'Dinosaure'.", visual: "🦕 Fiche" }, { text: "Trouver la taille de chacun (recherche visuelle).", visual: "📏 Mesurer" }, { text: "Les classer du plus petit au plus grand.", visual: "➡️ Tri" }, { text: "Dicter le nom du plus grand (langage).", visual: "🗣️ Nommer" }] },
-            { id: 10, name: "Construction de Tours (Lego/Duplo)", category: "Intérêt", level: "Faible", description: "Construction répétitive sans but prédéfini. Focus sur la sensation tactile et la répétition.", tags_profil: ["Répétition", "Moteur", "construction", "Lego", "Duplo", "blocs"], routine_steps: [{ text: "Choisir les blocs (même couleur si besoin de routine).", visual: "🧱 Choisir blocs" }, { text: "Empiler les blocs jusqu'à épuisement.", visual: "🗼 Empiler" }, { text: "Faire tomber la tour (apport proprioceptif).", visual: "💥 Détruire" }, { text: "Recommencer.", visual: "🔁 Recommencer" }] },
-            { id: 11, name: "Programmation Visuelle par Blocs", category: "Technologie", level: "Élevé", description: "Utiliser Scratch Junior ou équivalent pour créer une séquence logique simple.", tags_profil: ["Logique", "Séquence", "programmation", "technologie", "blocs"], routine_steps: [{ text: "Choisir un personnage et un arrière-plan.", visual: "💻 Écran" }, { text: "Ajouter le bloc 'Avancer' (3 fois).", visual: "➡️ Avancer" }, { text: "Ajouter le bloc 'Parler' ('Salut !').", visual: "💬 Parler" }, { text: "Tester la séquence (vérification logique).", visual: "▶️ Exécuter" }] },
-            { id: 12, name: "Lavage des Objets", category: "Régulation", level: "Faible", description: "Jouer avec de l'eau savonneuse pour nettoyer des jouets. Effet calmant et auditif agréable.", tags_profil: ["Calme", "Répétition", "eau", "bruits doux", "savon"], routine_steps: [{ text: "Remplir une bassine d'eau tiède et de savon.", visual: "🛁 Eau et bulles" }, { text: "Frotter les jouets avec une brosse.", visual: "🧼 Frotter" }, { text: "Rincer les jouets (sensation eau propre).", visual: "💧 Rincer" }, { text: "Éponger (motricité fine et rangement).", visual: "💦 Éponger" }] },
-            { id: 13, name: "Jeu de Pistes Visuelles", category: "Moteur", level: "Moyen", description: "Suivre une ligne de ruban adhésif au sol pour la conscience corporelle et la planification motrice.", tags_profil: ["Kinesthésique", "Moteur", "pistes", "motricité globale", "global"], routine_steps: [{ text: "Démarrer au début de la piste (repère visuel).", visual: "🟢 Départ" }, { text: "Suivre la ligne avec les pieds.", visual: "👣 Suivre la ligne" }, { text: "S'arrêter au panneau STOP (si présent).", visual: "🛑 Arrêt" }, { text: "Recommencer dans l'autre sens.", visual: "↩️ Retour" }] },
-            { id: 14, name: "Lecture Rythmée", category: "Culture", level: "Moyen", description: "Lire un poème court avec un métronome ou un rythme marqué. Aide à la prosodie et au langage.", tags_profil: ["Séquence", "Répétition", "musique", "rythme"], routine_steps: [{ text: "Démarrer le métronome ou la musique.", visual: "🎶 Musique/Métronome" }, { text: "Pointer les mots en suivant le rythme.", visual: "👆 Pointer" }, { text: "Répéter la phrase 3 fois.", visual: "🔁 Répéter" }, { text: "Changer le rythme (lent/rapide).", visual: "🐌/🐇 Vitesse" }] },
-            { id: 15, name: "Percussion Rythmique Structurée", category: "Créatif", level: "Moyen", description: "Frapper un tambour ou une percussion en suivant une séquence de cartes visuelles (ex: lent-rapide-lent).", tags_profil: ["Musique", "Rythme", "Répétition", "Séquence", "Sonore", "Moteur"], routine_steps: [{ text: "Choisir la carte de rythme (visuel de la séquence).", visual: "🎼 Carte Rythme" }, { text: "Frapper la percussion en suivant le premier rythme (ex: 3x lent).", visual: "🥁 Frapper lent" }, { text: "Frapper la percussion en suivant le deuxième rythme (ex: 5x rapide).", visual: "⚡ Frapper rapide" }, { text: "Échanger l'instrument avec l'adulte (social/partage).", visual: "🤝 Partager" }] },
-            { id: 16, name: "La Recette Visuelle Simple", category: "Pratique", level: "Élevé", description: "Préparer un goûter simple (mélanger des ingrédients) en suivant une routine visuelle étape par étape.", tags_profil: ["Cuisine", "Séquence", "Logique", "motricité fine", "visuel", "mesure"], routine_steps: [{ text: "Laver les mains (séquence d'hygiène).", visual: "🧼 Lavage mains" }, { text: "Mesurer les ingrédients (cuillère/tasse).", visual: "🥄 Mesurer" }, { text: "Mélanger les ingrédients (apport moteur fin).", visual: "🥣 Mélanger" }, { text: "Goûter la préparation (sensoriel oral).", visual: "😋 Goûter" }] },
-            { id: 17, name: "Peinture au Coton-Tige", category: "Créatif", level: "Faible", description: "Activité artistique demandant une grande précision motrice fine. Focalise sur la couleur et la pression.", tags_profil: ["Fin", "motricité fine", "couleurs", "visuel", "précision", "textures"], routine_steps: [{ text: "Choisir 3 couleurs de peinture.", visual: "🌈 Choisir couleur" }, { text: "Prendre un coton-tige (pince fine).", visual: "🥢 Coton-tige" }, { text: "Faire des points précis sur la feuille.", visual: "⚫ Faire des points" }, { text: "Laisser sécher et observer le résultat.", visual: "👀 Observer" }] },
-        ];
-
-
-        const activitiesGrid = document.getElementById('activities-grid');
-        const categoryFilter = document.getElementById('category-filter');
-        const levelFilter = document.getElementById('level-filter');
-        const attractionsInput = document.getElementById('attractions-input');
-        const calmingInput = document.getElementById('calming-input');
-        const needsInput = document.getElementById('needs-input');
-        const noResultsMessage = document.getElementById('no-results-message');
-
-        function createActivityCard(activity) {
-            const card = document.createElement('div');
-            const hoverClass = getCategoryHoverClass(activity.category); 
-            card.className = `activity-card bg-white p-5 rounded-xl border border-gray-100 shadow-lg flex flex-col justify-between ${hoverClass}`;
-            card.innerHTML = `
-                <div>
-                    <span class="inline-block text-xs font-semibold px-3 py-1 rounded-full ${getCategoryStyle(activity.category)} mb-3">${activity.category.split(' ')[0]}</span>
-                    <h3 class="text-xl font-bold text-gray-900 mb-2">${activity.name}</h3>
-                    <p class="text-sm text-gray-600 mb-4">${activity.description}</p>
-                </div>
-                <div class="flex justify-between items-center text-sm mt-3 pt-3 border-t border-gray-100">
-                    <span class="text-indigo-600 font-medium">Structure: ${activity.level}</span>
-                    <button onclick="showDetailsModal(${activity.id})" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-sm transition duration-150 shadow-md">Détails de la Routine</button>
-                </div>
-            `;
-            return card;
-        }
-
-        function getCategoryStyle(category) {
-            switch (category) {
-                case 'Régulation': return 'bg-cyan-100 text-cyan-700';
-                case 'Social': return 'bg-emerald-100 text-emerald-700'; 
-                case 'Moteur': return 'bg-pink-100 text-pink-700'; 
-                case 'Intérêt': return 'bg-purple-100 text-purple-700';
-                case 'Technologie': return 'bg-teal-100 text-teal-700';
-                case 'Culture': return 'bg-yellow-100 text-yellow-700';
-                case 'Créatif': return 'bg-fuchsia-100 text-fuchsia-700'; 
-                case 'Pratique': return 'bg-orange-100 text-orange-700'; 
-                default: return 'bg-gray-100 text-gray-700';
-            }
-        }
-        
-        function getCategoryHoverClass(category) {
-            switch (category) {
-                case 'Régulation': return 'hover-reg'; 
-                case 'Social': return 'hover-social';
-                case 'Moteur': return 'hover-moteur'; 
-                case 'Intérêt': return 'hover-interet'; 
-                default: return '';
-            }
-        }
-
-        function getKeywordsFromInput() {
-            const processInput = (inputElement) => {
-                return inputElement.value.toLowerCase()
-                    .split(/[\s,]+/) 
-                    .map(kw => kw.trim())
-                    .filter(kw => kw.length > 2 && kw !== 'et');
-            };
-
-            return {
-                attractions: [...new Set(processInput(attractionsInput))],
-                calming: [...new Set(processInput(calmingInput))],
-                needs: [...new Set(processInput(needsInput))]
-            };
-        }
-
-        function calculateScore(activity, structuredKeywords) {
-            let score = 0;
-            const activityTags = activity.tags_profil.map(tag => tag.toLowerCase().trim());
-            
-            const hasMatch = (activityTags, userKeywords) => {
-                if (userKeywords.length === 0) return false;
-                
-                const allWordsToTest = new Set();
-                userKeywords.forEach(kw => {
-                    allWordsToTest.add(kw);
-                    (SYNONYM_MAP[kw] || []).forEach(syn => allWordsToTest.add(syn));
-                });
-
-                const wordsArray = Array.from(allWordsToTest);
-
-                return activityTags.some(activityTag => 
-                    wordsArray.some(testWord => {
-                        return activityTag.includes(testWord) || testWord.includes(activityTag); 
-                    })
-                );
-            };
-
-            if (hasMatch(activityTags, structuredKeywords.attractions)) {
-                score += 3;
-            }
-            if (hasMatch(activityTags, structuredKeywords.calming)) {
-                score += 2;
-            }
-            if (hasMatch(activityTags, structuredKeywords.needs)) {
-                score += 1;
-            }
-
-            return score;
-        }
-
-        window.showDetailsModal = function(id) {
-            const activity = activitiesData.find(a => a.id === id);
-            if (!activity) return;
-
-            // Logique pour le modal
-            let routineHtml = activity.routine_steps.map((step, index) => {
-                const parts = step.visual.split(' ');
-                const icon = parts[0];
-                const visualText = parts.slice(1).join(' ');
+            listContainer.innerHTML = observations.map(obs => {
+                // Format the timestamp (handling potential null/undefined for new docs)
+                const dateStr = obs.createdAt?.toDate ? 
+                    obs.createdAt.toDate().toLocaleDateString('fr-FR') : 
+                    'En cours...';
 
                 return `
-                    <div class="flex items-start mb-4 p-3 bg-gray-100 rounded-lg shadow-sm">
-                        <div class="text-3xl mr-4 p-2 bg-white rounded-full border border-gray-200 shadow-md flex-shrink-0 w-12 h-12 flex items-center justify-center">${icon}</div>
-                        <div class="flex-1">
-                            <h6 class="font-semibold text-gray-800 text-sm">Étape ${index + 1}:</h6>
-                            <p class="text-base text-gray-700 font-medium">${step.text}</p>
-                            <p class="text-xs text-gray-500 mt-1 italic">Idée visuelle : ${visualText}</p>
+                    <div id="obs-${obs.id}" class="observation-card flex justify-between items-start">
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
+                            <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
+                            <p class="text-sm text-gray-500 mb-3">Créé le: ${dateStr} (Par: ${obs.creatorId.substring(0, 8)}...)</p>
+                            <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
+                        </div>
+                        <div>
+                            <button onclick="window.deleteObservation('${obs.id}')"
+                                class="text-red-500 hover:text-red-700 transition duration-150 p-1 rounded-full hover:bg-red-50" 
+                                title="Supprimer">
+                                <svg class="w-5 h-5" name="x"></svg>
+                            </button>
                         </div>
                     </div>
                 `;
             }).join('');
-
-            const modalContent = document.getElementById('modal-content');
-            modalContent.innerHTML = `
-                <h4 class="text-3xl font-bold text-indigo-700 mb-2">${activity.name}</h4>
-                <span class="inline-block text-sm font-medium px-3 py-1 rounded-full ${getCategoryStyle(activity.category)} mb-4">${activity.category} - Structure: ${activity.level}</span>
-
-                <p class="text-base text-gray-600 mb-6 border-b pb-4">${activity.description}</p>
-                
-                <h5 class="font-bold text-xl text-pink-600 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    SÉQUENCE VISUELLE DÉTAILLÉE
-                </h5>
-                
-                <div class="space-y-3 mb-6">
-                    ${routineHtml}
-                </div>
-
-                <hr class="mb-4">
-                <p class="font-semibold text-gray-700 text-sm">Tags Profils Associés: <span class="font-normal text-indigo-500">${activity.tags_profil.join(', ')}</span></p>
-
-                <button onclick="document.getElementById('details-modal').classList.add('hidden')" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">Fermer la Routine</button>
-            `;
-            document.getElementById('details-modal').classList.remove('hidden');
         }
-        
-        function filterActivities() {
-            const selectedCategory = categoryFilter.value.split(' ')[0];
-            const selectedLevel = levelFilter.value.split(' ')[0];
-            
-            const structuredKeywords = getKeywordsFromInput();
-            const hasUserKeywords = structuredKeywords.attractions.length > 0 || structuredKeywords.calming.length > 0 || structuredKeywords.needs.length > 0;
 
-            const scoredActivities = activitiesData
-                .map(activity => {
-                    const categoryMatch = selectedCategory === 'all' || activity.category === selectedCategory;
-                    const levelMatch = selectedLevel === 'all' || activity.level === selectedLevel;
-                    
-                    if (categoryMatch && levelMatch) {
-                        const score = calculateScore(activity, structuredKeywords);
-                        return { ...activity, score: score };
-                    }
-                    return { ...activity, score: -1 };
-                })
-                .filter(activity => {
-                    if (activity.score === -1) return false;
-                    if (hasUserKeywords) {
-                        return activity.score > 0;
-                    }
-                    return true; 
+        /**
+         * Handles the form submission to add a new observation.
+         * @param {Event} event The form submission event.
+         */
+        async function handleSubmit(event) {
+            event.preventDefault();
+            if (!userId) {
+                showNotification("Veuillez attendre l'authentification de l'utilisateur.", 'error');
+                return;
+            }
+
+            const title = document.getElementById('title').value.trim();
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value.trim();
+
+            if (!title || !description) {
+                showNotification("Le titre et la description ne peuvent pas être vides.", 'error');
+                return;
+            }
+
+            const colRef = getCollectionRef();
+            if (!colRef) return;
+
+            showNotification("Ajout de l'observation...", 'loading');
+
+            try {
+                await addDoc(colRef, {
+                    title,
+                    category,
+                    description,
+                    creatorId: userId,
+                    createdAt: serverTimestamp()
                 });
+
+                // Clear the form
+                document.getElementById('observation-form').reset();
+                showNotification("Observation ajoutée avec succès !", 'success');
+
+            } catch (error) {
+                console.error("Erreur lors de l'ajout de l'observation:", error);
+                showNotification(`Échec de l'ajout: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Deletes an observation by ID.
+         * @param {string} docId The ID of the document to delete.
+         */
+        async function deleteObservation(docId) {
+            if (!userId) return; 
+
+            const confirmDelete = true; // Use a simple boolean check in place of window.confirm()
+            if (!confirmDelete) return;
+
+            showNotification("Suppression de l'observation...", 'loading');
+
+            try {
+                // Path to the document
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'observations', docId);
+                await deleteDoc(docRef);
+                showNotification("Observation supprimée avec succès.", 'success');
+            } catch (error) {
+                console.error("Erreur lors de la suppression:", error);
+                showNotification(`Échec de la suppression: ${error.message}`, 'error');
+            }
+        }
+
+        // Expose functions to the window so they can be called from inline HTML (buttons)
+        window.deleteObservation = deleteObservation;
+
+        // ==========================================================
+        // === NOUVELLE FONCTION POUR LA GÉNÉRATION DE RAPPORT PDF ===
+        // ==========================================================
+        /**
+         * Generates a multi-page PDF report from the #report-content area.
+         */
+        async function generatePdfReport() {
+            const reportArea = document.getElementById('report-content');
+            if (!reportArea) {
+                console.error("Zone de contenu du rapport introuvable.");
+                showNotification("Erreur : Contenu du rapport introuvable.", 'error');
+                return;
+            }
+
+            // Temporarily change button to show loading
+            const button = document.getElementById('generatePdfButton');
+            button.disabled = true;
+            const originalButtonText = button.innerHTML;
+            button.innerHTML = '<div class="loader inline-block"></div> Génération...';
+
+            showNotification("Génération du rapport PDF en cours...", 'loading');
             
-            scoredActivities.sort((a, b) => {
-                if (b.score !== a.score) {
-                    return b.score - a.score;
+            // Use a timeout to ensure the loading message and state update before heavy canvas work
+            setTimeout(async () => {
+                try {
+                    // 1. Capture the HTML content as a canvas image
+                    const canvas = await html2canvas(reportArea, {
+                        scale: 3, // Increase scale for better resolution (3x)
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#f7f9fb', // Use the body background color
+                        scrollY: -window.scrollY // Ensure capture starts from the top
+                    });
+
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, millimeters, A4 size
+
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm for A4
+
+                    // Calculate image dimensions to fit PDF page width
+                    const imgHeight = canvas.height * pdfWidth / canvas.width;
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0); // Use JPEG for smaller file size
+
+                    let currentY = 0; // Current Y position of the image slice
+                    let pageIndex = 0;
+                    const pageContentHeight = pdfHeight - 20; // Leave 10mm top/bottom margin
+
+                    // Loop to add content to multiple pages if needed
+                    while (currentY < imgHeight) {
+                        if (pageIndex > 0) {
+                            pdf.addPage();
+                        }
+                        
+                        // Add header/title only on the first page
+                        if (pageIndex === 0) {
+                            pdf.setFontSize(16);
+                            pdf.setTextColor(55, 65, 81); // gray-700
+                            pdf.text("Rapport d'Observations", pdfWidth / 2, 10, { align: 'center' });
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(107, 114, 128); // gray-500
+                            const date = new Date().toLocaleDateString('fr-FR');
+                            pdf.text(`Généré le: ${date}`, pdfWidth / 2, 18, { align: 'center' });
+                            // Start drawing content after header
+                            currentY = 25; 
+                        }
+
+                        // Determine the height of the current slice to fit the PDF page
+                        // (imgHeight - currentY) is the remaining height of the image content
+                        const sliceHeight = Math.min(imgHeight - currentY, pageContentHeight);
+
+                        // Calculate the Y offset for the image drawing
+                        // We need to move the image *up* by the amount of content already drawn (currentY)
+                        const yOffset = -currentY;
+                        
+                        // Add image to PDF
+                        pdf.addImage(
+                            imgData, 
+                            'JPEG', 
+                            0, // X position (start of page)
+                            10, // Y position (10mm margin from top)
+                            pdfWidth, // Width (full PDF width)
+                            imgHeight, // Height (full image height)
+                            null, // alias
+                            'FAST', // compression
+                            0, // rotation
+                            yOffset * (pdfWidth / canvas.width) + 10 // Y position offset to slice the image
+                        );
+                        
+                        // Update currentY for the next page
+                        currentY += sliceHeight;
+                        pageIndex++;
+                    }
+
+                    const date = new Date().toLocaleDateString('fr-FR');
+                    const title = `Rapport_Observations_${date.replace(/\//g, '-')}`;
+
+                    pdf.setProperties({
+                        title: title,
+                        subject: 'Rapport généré par l\'application d\'observations',
+                        author: auth.currentUser?.email || 'Utilisateur anonyme',
+                    });
+
+                    pdf.save(title + '.pdf');
+                    showNotification("Rapport PDF généré et téléchargé avec succès !", 'success');
+
+                } catch (error) {
+                    console.error("Erreur lors de la génération du PDF:", error);
+                    showNotification(`Échec de la génération du PDF: ${error.message}`, 'error');
+                } finally {
+                    // Restore button state
+                    button.innerHTML = originalButtonText;
+                    button.disabled = false;
                 }
-                return a.name.localeCompare(b.name);
-            });
-
-            activitiesGrid.innerHTML = '';
-
-            if (scoredActivities.length === 0) {
-                noResultsMessage.classList.remove('hidden');
-            } else {
-                noResultsMessage.classList.add('hidden');
-                scoredActivities.forEach(activity => {
-                    activitiesGrid.appendChild(createActivityCard(activity));
-                });
-            }
+            }, 50); // Small delay to let UI update
         }
+        window.generatePdfReport = generatePdfReport;
 
-        // Écouteurs pour le Catalogue
-        categoryFilter.addEventListener('change', filterActivities);
-        levelFilter.addEventListener('change', filterActivities);
-        attractionsInput.addEventListener('input', filterActivities);
-        calmingInput.addEventListener('input', filterActivities);
-        needsInput.addEventListener('input', filterActivities);
-
-        // Initialisation à l'événement DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM loaded. Initializing application state.");
-            
-            // 1. Initialiser la date d'observation
-            const today = new Date().toISOString().slice(0, 10);
-            const obsDateElement = document.getElementById('obs-date');
-            if (obsDateElement) {
-                obsDateElement.value = today;
-            }
-
-            // 2. Assurer l'affichage du bon onglet (Catalogue par défaut)
-            // Cela applique la classe 'active' au catalogue et masque les observations.
-            switchTab('catalogue'); 
-
-            // 3. Charger le catalogue et les filtres
-            filterActivities();
-
-            // 4. Démarrer l'écoute si l'authentification est déjà prête (si Firebase est rapide)
-            if (isAuthReady) {
-                setupObservationListener();
-            }
-        });
+        // Initialize on load
+        window.onload = () => {
+            setupFirebase();
+            document.getElementById('observation-form').addEventListener('submit', handleSubmit);
+        };
     </script>
+</head>
+
+<body class="p-4 md:p-8">
+    
+    <!-- Notification Box -->
+    <div id="notification-box" role="alert" class="rounded-lg border-l-4 p-4 shadow-lg flex items-center">
+        <div id="notification-icon" class="flex-shrink-0 mr-3"></div>
+        <div class="flex-grow">
+            <p id="notification-message" class="text-sm font-medium"></p>
+        </div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">Catalogue d'Observations</h1>
+            <p id="user-id-display" class="text-xs text-gray-500 mt-1"></p>
+        </header>
+
+        <!-- Formulaire d'ajout d'observation -->
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-500" name="plus"></svg>
+                Ajouter une Nouvelle Observation
+            </h2>
+            <form id="observation-form" class="space-y-4">
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
+                    <input type="text" id="title" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
+                    <select id="category"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="Nature">Nature</option>
+                        <option value="Environnement">Environnement</option>
+                        <option value="Comportement">Comportement</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
+                    <textarea id="description" rows="4" required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
+                    <svg class="w-5 h-5 mr-2" name="plus"></svg>
+                    Enregistrer l'Observation
+                </button>
+            </form>
+        </div>
+
+        <!-- Liste des observations et bouton de rapport -->
+        <div class="mb-4 flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-700 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-indigo-500" name="search"></svg>
+                Liste des Observations
+            </h2>
+            <button id="generatePdfButton"
+                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
+                title="Télécharger un rapport PDF des observations">
+                <!-- FIX: Remplacement de l'icône Lucide par un SVG intégré pour la stabilité -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
+                Générer Rapport PDF
+            </button>
+        </div>
+        
+        <!-- Contenu qui sera capturé pour le PDF -->
+        <div id="report-content">
+            <div id="observations-list" class="space-y-3">
+                <!-- Les observations seront insérées ici par JavaScript -->
+                <p class="text-center text-gray-500 py-8">Chargement des observations...</p>
+            </div>
+        </div>
+        <!-- Fin du contenu à capturer -->
+        
+    </div>
 </body>
 </html>

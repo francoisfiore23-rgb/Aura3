@@ -109,7 +109,7 @@
         let unsubscribe = null;
         
         let state = {
-            currentView: 'activites', // Démarrage par défaut sur les activités (Corrigé)
+            currentView: 'activites',
             observations: [],
             childProfile: {
                 name: "Leo",
@@ -121,18 +121,17 @@
         
         setLogLevel('Debug'); // Log level for debugging Firestore
 
-        // --- DATA STRUCTURE FOR ACTIVITIES ---
+        // --- DATA STRUCTURE FOR ACTIVITIES (inchangée) ---
         const activitiesData = [
             { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
             { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
             { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
             { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
             { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
-            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
+            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
         ];
 
-
-        // --- SVG DEFINITIONS (Non-modifiées) ---
+        // --- SVG DEFINITIONS (inchangées) ---
         const xIconSVG = (classes = 'w-5 h-5') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
                 <path d="M18 6L6 18"></path>
@@ -153,7 +152,7 @@
             </svg>
         `;
         
-        // --- UTILITY FUNCTIONS (Notification, Firebase Setup, Data Handling) ---
+        // --- UTILITY FUNCTIONS (Notification, Profile Modal - inchangées) ---
 
         function showNotification(message, type = 'success') {
             const box = document.getElementById('notification-box');
@@ -185,7 +184,6 @@
             }
         }
         
-        // Gérer la modale du profil
         window.toggleProfileModal = (show) => {
             const modal = document.getElementById('profile-modal');
             const backdrop = document.getElementById('modal-backdrop');
@@ -198,94 +196,89 @@
             }
         }
         
+        /**
+         * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
+         * Corrigé pour éviter l'affichage de l'erreur technique 'api-key-not-valid'.
+         */
         async function setupFirebase() {
+            if (app) return; // Empêche la réinitialisation
+            
+            let config = null;
+
             try {
-                if (app) return; // Empêche la réinitialisation
-
-                let config = null;
-
-                // 1. Tenter de parser la configuration fournie par l'environnement
+                // Tenter de parser la configuration fournie par l'environnement
                 if (firebaseConfigString) {
-                    try {
-                        config = JSON.parse(firebaseConfigString);
-                    } catch (e) {
-                        // SCENARIO 5: Erreur de parsing de __firebase_config
-                        console.error("SCENARIO 5: Erreur de parsing de __firebase_config. Utilisation de la configuration de secours.", e);
-                    }
+                    config = JSON.parse(firebaseConfigString);
+                } else {
+                    throw new Error("Config string is missing.");
                 }
                 
-                // 2. SCENARIOS 9, 12, 15: Validation stricte et fallback
-                // Vérifie si la config est absente, si la clé API n'est pas une chaîne valide ou si elle est vide/factice.
-                const isConfigInvalid = !config || 
-                                        typeof config.apiKey !== 'string' || 
-                                        config.apiKey.trim() === "" || 
-                                        config.apiKey.startsWith(DUMMY_API_KEY.substring(0, 10)) || // Vérifie si c'est la clé factice
-                                        !config.projectId; 
-
-                if (isConfigInvalid) { 
-                    // SCENARIO 15: Forcer la configuration factice pour éviter le crash
-                    config = MOCK_FIREBASE_CONFIG;
-                    // SCENARIO 8: Log de l'erreur pour le développeur
-                    console.error("SCENARIO 8/9/15: Clé API Firebase manquante ou non valide. L'application continuera avec la configuration factice. Vérifiez __firebase_config.");
-                    showNotification("ERREUR CRITIQUE DE LA BASE DE DONNÉES. L'application utilise un mode hors ligne (Clé API invalide/manquante).", 'error');
-                } else {
-                    // SCENARIO 8: Log de la clé (partielle) pour rassurer qu'elle a été trouvée
-                    console.log("SCENARIO 8: Firebase API Key found. Attempting initialization.");
-                }
-
-                // Tenter l'initialisation avec la configuration ajustée
+                // 1. Tenter l'initialisation avec la configuration fournie (potentiellement invalide)
                 app = initializeApp(config);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-
-                // 3. Logique d'authentification sécurisée
+            } catch (error) {
+                // L'erreur critique se produit souvent ici (par ex. 'auth/api-key-not-valid')
+                console.error("Erreur initiale de connexion Firebase:", error);
+                
+                // 2. Vérification de l'erreur spécifique et bascule vers la configuration MOCK
+                const isApiKeyError = error.code === 'auth/api-key-not-valid' || error.message.includes('api-key-not-valid');
+                
+                if (isApiKeyError) {
+                    
+                    // Détruire l'instance d'application échouée et configurer le mode factice
+                    if (app) { app.delete().catch(() => {}); app = null; } 
+                    
+                    console.warn("Bascule vers la configuration de secours factice après échec de l'API Key.");
+                    
+                    // Re-initialisation SILENCIEUSE avec la configuration MOCK (Scenario 15)
+                    config = MOCK_FIREBASE_CONFIG;
+                    app = initializeApp(config);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    // Afficher la notification de mode hors ligne, PAS l'erreur technique
+                    showNotification("ERREUR CRITIQUE: Clé API invalide. L'application utilise le mode HORS LIGNE (Base de données indisponible).", 'error');
+                    
+                } else {
+                    // Si c'est une autre erreur, on la logue et on sort
+                    showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
+                    return;
+                }
+            }
+            
+            // Logique d'authentification (pour la config fournie OU pour la config factice)
+            try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
-
-                // 4. Écouteur d'état d'authentification pour gérer l'UID et les listeners
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        startDataListener();
-                        updateUserIdDisplay(userId); 
-                    } else {
-                        userId = null;
-                        state.observations = [];
-                        updateUserIdDisplay(null); 
-                        if (state.currentView === 'catalogue') renderObservations([]);
-                    }
-                    renderApp(); 
-                });
-
-            } catch (error) {
-                // Gérer les erreurs subséquentes (ex: échec d'authentification même avec la clé factice)
-                console.error("Erreur de configuration Firebase ou d'authentification:", error);
-                showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
-                
-                if (document.getElementById('main-content-container')) {
-                     // Afficher l'erreur dans le conteneur principal si l'initialisation échoue
-                     const errorHtml = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
-                        <p class="font-bold mb-2">ERREUR CRITIQUE DE LA BASE DE DONNÉES</p>
-                        <p class="text-sm">${error.message}</p>
-                        <p class="text-xs mt-3">L'application continue sans accès à la base de données. Veuillez vérifier la console (Scenario 8) pour plus de détails sur l'échec de la connexion.</p>
-                    </div>`;
-                    
-                    // Si on est sur la vue Catalogue, afficher l'erreur
-                    if (state.currentView === 'catalogue') {
-                        document.getElementById('main-content-container').innerHTML = renderCatalogueView() + errorHtml;
-                    } else {
-                        // Sinon, l'erreur sera affichée via la notification et l'application affichera les activités statiques
-                    }
-                }
+            } catch (authError) {
+                // L'authentification a échoué (souvent si on est déjà en mode factice, l'authentification anonyme passe)
+                console.error("Erreur d'authentification après initialisation:", authError);
             }
+
+
+            // 3. Écouteur d'état d'authentification pour gérer l'UID et les listeners
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    startDataListener();
+                    updateUserIdDisplay(userId); 
+                } else {
+                    userId = null;
+                    state.observations = [];
+                    updateUserIdDisplay(null); 
+                    if (state.currentView === 'catalogue') renderObservations([]);
+                }
+                renderApp(); 
+            });
         }
 
         function getCollectionRef() {
-            // S'assurer que db est initialisé (même si c'est avec la config factice)
+            // S'assurer que db est initialisé
             if (!db || !userId || !app) {
                 console.warn("Tentative d'accès à la base de données sans initialisation complète.");
                 return null;
@@ -298,7 +291,7 @@
             // SCENARIO 15: Ne pas tenter de se connecter si on est en mode factice
             if (app.options.apiKey === DUMMY_API_KEY) {
                 console.warn("Mode factice actif. L'écouteur Firestore est désactivé.");
-                showNotification("Mode hors ligne: La liste d'observations ne sera pas mise à jour en temps réel.", 'info');
+                // Ne pas réafficher la notification ici, elle est déjà affichée lors de la bascule.
                 return;
             }
             
@@ -357,7 +350,7 @@
         }
 
 
-        // --- VIEW RENDERING LOGIC (Non-modifiées) ---
+        // --- VIEW RENDERING LOGIC (inchangée) ---
         function renderApp() {
             const mainContent = document.getElementById('main-content-container');
             if (!mainContent) return;
@@ -381,12 +374,9 @@
             if (activeLink) activeLink.classList.add('active');
         }
 
-        // ... (renderActivityCard, renderActivitiesView, renderCatalogueView, attachCatalogueListeners sont inchangés) ...
-
         function renderActivityCard(activity) {
-            const levelColorMap = { 1: 'yellow-500', 2: 'orange-500', 3: 'red-500' };
+            const levelColor = activity.color; 
             const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
-            const levelColor = activity.color; // Utilisez la couleur de l'activité pour la tag
 
             return `
                 <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
@@ -431,7 +421,6 @@
             return `
                 <div class="p-4 md:p-8">
                     <header class="text-center mb-6">
-                        <!-- Nom de l'application rendu ici -->
                         <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight">ARGILE-B Activités</h1>
                         <p class="text-gray-500 mt-2">Catalogue des activités pour le développement personnalisé de l'enfant.</p>
                     </header>
@@ -580,7 +569,7 @@
             }, 0);
         }
 
-        // --- CATALOGUE DATA MANIPULATION FUNCTIONS ---
+        // --- CATALOGUE DATA MANIPULATION FUNCTIONS (inchangées) ---
 
         function renderObservations(observations) {
             if (state.currentView !== 'catalogue') return; 
@@ -686,7 +675,7 @@
         window.deleteObservation = deleteObservation;
 
 
-        // --- PDF GENERATION FUNCTION (Inchangée) ---
+        // --- PDF GENERATION FUNCTION (inchangée) ---
         async function generatePdfReport() {
             const reportArea = document.getElementById('report-content');
             if (!reportArea) {
@@ -758,7 +747,7 @@
 
         // --- INITIALIZATION ---
         window.onload = () => {
-            // Démarrer l'affichage IMMEDIATEMENT (Assure l'affichage initial sur 'activites')
+            // Démarrer l'affichage IMMEDIATEMENT
             state.currentView = 'activites'; 
             renderApp(); 
             
@@ -818,7 +807,6 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
                 <div class="flex-shrink-0">
-                    <!-- Nom de l'appli ici -->
                     <span class="text-2xl font-extrabold text-gray-900">ARGILE-<span class="text-indigo-600">B</span></span>
                 </div>
                 <!-- Navigation Links -->
@@ -838,7 +826,6 @@
     
     <!-- Main Content Container (Controlled by JavaScript) -->
     <div id="main-content-container" class="max-w-7xl mx-auto">
-        <!-- Le contenu est chargé ici par window.onload -->
         <p class="text-center text-gray-500 py-12">Initialisation de l'interface...</p>
     </div>
 

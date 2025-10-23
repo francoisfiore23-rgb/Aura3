@@ -117,7 +117,7 @@
             { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
             { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
             { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
-            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
+            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication. Ce texte est volontairement plus long pour tester l'alignement des boutons.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
             { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
             { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
         ];
@@ -359,7 +359,7 @@
         }
 
 
-        // --- VIEW RENDERING LOGIC (inchangée) ---
+        // --- VIEW RENDERING LOGIC (Modifiée pour l'alignement des boutons) ---
         function renderApp() {
             const mainContent = document.getElementById('main-content-container');
             if (!mainContent) return;
@@ -388,7 +388,7 @@
             const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
 
             return `
-                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
+                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200 flex flex-col h-full"> <!-- Ajouté flex flex-col h-full pour l'alignement -->
                     <div class="flex justify-between items-center mb-3">
                         <div class="tag bg-${levelColor}-100 text-${levelColor}-700">${activity.category}</div>
                         <span class="text-sm font-medium text-gray-500 flex items-center">
@@ -397,20 +397,24 @@
                     </div>
                     <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
                     
-                    <!-- Pictogrammes -->
-                    <div class="flex space-x-3 mb-3">
-                        ${activity.icons.map(icon => `<span class="text-3xl hover:scale-110 transition duration-150" title="${activity.category}">${icon}</span>`).join('')}
-                    </div>
-                    
-                    <p class="text-gray-600 text-sm mb-4">${activity.description}</p>
+                    <!-- Contenu variable (prend l'espace restant pour pousser le bouton vers le bas) -->
+                    <div class="flex-grow"> 
+                        <!-- Pictogrammes -->
+                        <div class="flex space-x-3 mb-3">
+                            ${activity.icons.map(icon => `<span class="text-3xl hover:scale-110 transition duration-150" title="${activity.category}">${icon}</span>`).join('')}
+                        </div>
+                        
+                        <p class="text-gray-600 text-sm mb-4">${activity.description}</p>
 
-                    <!-- Séquence détaillée -->
-                    <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
-                        <p class="font-semibold text-gray-700 mb-2">Séquence détaillée:</p>
-                        <ol class="list-decimal list-inside text-gray-600 ml-4 space-y-1">
-                            ${activity.sequence.map((step, index) => `<li class="pl-1">${step}</li>`).join('')}
-                        </ol>
+                        <!-- Séquence détaillée -->
+                        <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                            <p class="font-semibold text-gray-700 mb-2">Séquence détaillée:</p>
+                            <ol class="list-decimal list-inside text-gray-600 ml-4 space-y-1">
+                                ${activity.sequence.map((step, index) => `<li class="pl-1">${step}</li>`).join('')}
+                            </ol>
+                        </div>
                     </div>
+                    <!-- Fin Contenu variable -->
 
                     <button onclick="showNotification('Activité lancée: ${activity.title}. Enregistrez vos observations dans le catalogue!', 'info')"
                         class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
@@ -467,6 +471,7 @@
                     </div>
 
                     <!-- Grille des Cartes d'Activités -->
+                    <!-- Note: La hauteur des cartes est gérée par flex flex-col h-full dans renderActivityCard -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                         ${activitiesData.map(renderActivityCard).join('')}
                     </div>

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- J'ai maintenu le nom de l'appli comme ARGILE-B mais il est maintenant plus visible -->
     <title>ARGILE-B - Application Unifiée</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -88,41 +87,11 @@
 
         // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // --- CORRECTION CRITIQUE (v3) : Garantir une API Key non-vide si la variable globale est manquante/invalide ---
-        const DUMMY_API_KEY = "AIzaSy_DummyKeyForSandboxEnv"; // Clé factice pour satisfaire la validation de l'SDK Firebase
         
-        const firebaseConfig = (() => {
-            const default_config = { 
-                projectId: 'mock-project-id', 
-                apiKey: DUMMY_API_KEY, 
-                authDomain: 'mock-domain', 
-                databaseURL: 'mock-db-url', 
-                storageBucket: 'mock-storage-bucket', 
-                messagingSenderId: 'mock-sender-id', 
-                appId: 'mock-app-id' 
-            };
-            
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                try {
-                    const parsed = JSON.parse(__firebase_config);
-                    // 1. Si la configuration est parsée, on s'assure qu'elle contient une clé d'API.
-                    // 2. Si la clé est manquante ou vide dans la config fournie, on injecte la clé factice.
-                    if (parsed && parsed.projectId) {
-                         parsed.apiKey = parsed.apiKey || DUMMY_API_KEY; 
-                         console.log("Configuration Firebase ajustée/sécurisée avec succès.");
-                         return parsed; 
-                    } else {
-                        console.warn("La configuration Firebase fournie est incomplète. Utilisation de la configuration de secours.");
-                    }
-                } catch (e) {
-                    console.warn("Erreur de parsing de __firebase_config. Utilisation de la configuration de secours.");
-                }
-            }
-            // Fallback à la configuration par défaut (qui utilise la clé factice).
-            return default_config;
-        })();
+        // Clé factice pour satisfaire la validation de l'SDK Firebase si la vraie clé est manquante ou invalide
+        const DUMMY_API_KEY = "AIzaSy_DummyKeyForSandboxEnv"; 
 
         // --- GLOBAL APP STATE & DB SETUP ---
         let app = null;
@@ -132,9 +101,8 @@
         let unsubscribe = null;
         
         let state = {
-            currentView: 'activites', // Démarrer sur la page 'activites' comme demandé
+            currentView: 'activites', 
             observations: [],
-            // Données de profil simulées
             childProfile: {
                 name: "Leo",
                 age: 4,
@@ -145,7 +113,7 @@
         
         setLogLevel('Debug'); // Log level for debugging Firestore
 
-        // --- DATA STRUCTURE FOR ACTIVITIES (Pour réintégrer les séquences et pictos) ---
+        // --- DATA STRUCTURE FOR ACTIVITIES ---
         const activitiesData = [
             { 
                 id: 1, 
@@ -216,7 +184,7 @@
         ];
 
 
-        // --- SVG DEFINITIONS (pour la stabilité) ---
+        // --- SVG DEFINITIONS ---
         const xIconSVG = (classes = 'w-5 h-5') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
                 <path d="M18 6L6 18"></path>
@@ -284,26 +252,47 @@
         
         async function setupFirebase() {
             try {
-                if (app) return;
+                if (app) return; // Empêche la réinitialisation
+
+                let config = null;
+
+                // 1. Tenter de parser la configuration fournie par l'environnement
+                if (firebaseConfigString) {
+                    try {
+                        config = JSON.parse(firebaseConfigString);
+                    } catch (e) {
+                        console.error("Erreur de parsing de __firebase_config:", e);
+                    }
+                }
                 
-                if (firebaseConfig.apiKey === DUMMY_API_KEY) {
-                    showNotification("Avertissement: Utilisation de la configuration Firebase de secours. La persistance des données devrait être fonctionnelle via le jeton.", 'info');
-                } else {
-                    console.log("Configuration Firebase fournie détectée.");
+                // 2. Si la config n'est pas valide ou si la clé API est manquante, utiliser une config de secours
+                if (!config || !config.apiKey) {
+                    config = { 
+                        projectId: 'mock-project-id', 
+                        apiKey: DUMMY_API_KEY, // Injecter la clé factice si manquante
+                        authDomain: 'mock-domain', 
+                        databaseURL: 'mock-db-url', 
+                        storageBucket: 'mock-storage-bucket', 
+                        messagingSenderId: 'mock-sender-id', 
+                        appId: 'mock-app-id' 
+                    };
+                    showNotification("Avertissement: Utilisation de la configuration Firebase de secours.", 'info');
                 }
 
-                app = initializeApp(firebaseConfig);
+
+                app = initializeApp(config);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
 
-                // --- Logique d'authentification sécurisée ---
+                // 3. Logique d'authentification sécurisée
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
 
+                // 4. Écouteur d'état d'authentification pour gérer l'UID et les listeners
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
@@ -315,19 +304,26 @@
                         updateUserIdDisplay(null); 
                         if (state.currentView === 'catalogue') renderObservations([]);
                     }
-                    renderApp(); // Initial render after auth
+                    renderApp(); // Rendu initial après l'auth
                 });
-                // --- Fin Logique d'authentification sécurisée ---
 
             } catch (error) {
                 // L'erreur critique est ici gérée et signalée proprement.
                 console.error("Erreur de configuration Firebase ou d'authentification:", error);
-                showNotification(`Erreur critique de configuration: ${error.message}. Vérifiez la console.`, 'error');
+                // Afficher l'erreur à l'utilisateur
+                showNotification(`Erreur critique Firebase: ${error.message}. Vérifiez la console.`, 'error');
+                // S'assurer que le contenu principal est vide ou affiche un message d'erreur
+                document.getElementById('main-content-container').innerHTML = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
+                    <p class="font-bold mb-2">ERREUR CRITIQUE</p>
+                    <p class="text-sm">${error.message}</p>
+                    <p class="text-xs mt-3">Veuillez vérifier la console pour plus de détails sur l'échec de la connexion à Firebase.</p>
+                </div>`;
             }
         }
 
         function getCollectionRef() {
             if (!db || !userId) return null;
+            // Chemin de collection public pour un partage collaboratif
             return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
         }
 
@@ -338,7 +334,6 @@
             const colRef = getCollectionRef();
             if (!colRef) return;
 
-            // REMARQUE: J'ai retiré 'orderBy' pour des raisons de stabilité (index manquants). Le tri est fait en JS.
             const q = query(colRef); 
 
             unsubscribe = onSnapshot(q, (snapshot) => {
@@ -358,6 +353,19 @@
                 if (state.currentView === 'catalogue') {
                     renderObservations(observations);
                 }
+                
+                // Mettre à jour la date de dernière observation dans l'état
+                if (observations.length > 0) {
+                    const latestDate = observations[0].createdAt?.toDate ? 
+                        observations[0].createdAt.toDate().toLocaleDateString('fr-FR') : 
+                        'N/A';
+                    state.childProfile.lastObservation = latestDate;
+                    // Forcer la mise à jour de la vue si on est sur Activités
+                    if (state.currentView === 'activites') {
+                         renderApp();
+                    }
+                }
+
             }, (error) => {
                 console.error("Erreur de l'écouteur Firestore:", error);
                 showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
@@ -407,26 +415,26 @@
         function renderActivityCard(activity) {
             const levelColorMap = { 1: 'yellow-500', 2: 'orange-500', 3: 'red-500' };
             const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
-            const levelColor = levelColorMap[activity.level] || 'gray-500';
+            const levelColor = activity.color; // Utilisez la couleur de l'activité pour la tag
 
             return `
                 <div class="activity-card bg-white p-6 rounded-xl border border-gray-200">
                     <div class="flex justify-between items-center mb-3">
-                        <div class="tag bg-${activity.color}-100 text-${activity.color}-700">${activity.category}</div>
+                        <div class="tag bg-${levelColor}-100 text-${levelColor}-700">${activity.category}</div>
                         <span class="text-sm font-medium text-gray-500 flex items-center">
                             Niveau ${activity.level} (${levelTextMap[activity.level]})
                         </span>
                     </div>
                     <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
                     
-                    <!-- Pictogrammes restaurés -->
+                    <!-- Pictogrammes -->
                     <div class="flex space-x-3 mb-3">
                         ${activity.icons.map(icon => `<span class="text-3xl hover:scale-110 transition duration-150" title="${activity.category}">${icon}</span>`).join('')}
                     </div>
                     
                     <p class="text-gray-600 text-sm mb-4">${activity.description}</p>
 
-                    <!-- Séquence détaillée restaurée -->
+                    <!-- Séquence détaillée -->
                     <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
                         <p class="font-semibold text-gray-700 mb-2">Séquence détaillée:</p>
                         <ol class="list-decimal list-inside text-gray-600 ml-4 space-y-1">

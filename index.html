@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
+    
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -29,14 +29,861 @@
             padding: 16px;
             border-radius: 8px;
         }
+        /* Styles pour la navigation */
         .nav-link.active {
-            border-bottom: 2px solid #4f46e5;
+            font-weight: 700;
+            border-bottom: 3px solid #4f46e5; /* Indigo */
             color: #4f46e5;
         }
+        /* Notification & Loader styles */
+        #notification-box {
+            position: fixed; top: 1.5rem; right: 1.5rem; max-width: 350px; z-index: 1000;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out; transform: translateX(100%); opacity: 0;
+        }
+        #notification-box.show { transform: translateX(0); opacity: 1; }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%;
+            width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Styles des cartes d'activité */
+        .activity-card {
+            /* Ombre initiale pour le relief */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            /* Transition plus fluide pour les effets de survol */
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+            /* La bordure par défaut reste visible pour le survol */
+            border-color: #e2e8f0;
+        }
+        /* Classe de Survol (Hover Effects) pour la Chaleur et le Relief */
+        .activity-card:hover {
+            /* Relief: augmente la shadow (shadow-xl) et soulève légèrement (translate-y-1) */
+            transform: translateY(-4px); 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08); 
+            /* Chaleur: fond légèrement teinté de blanc cassé et bordure douce */
+            background-color: #fcfcfd; 
+            border-color: #c7d2fe; /* Une teinte plus douce d'indigo (indigo-300) */
+        }
+        .tag {
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Styles de la modale pour le profil */
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 990; display: none;
+        }
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; border-radius: 12px; padding: 2rem; z-index: 1000; max-width: 500px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: none;
+        }
     </style>
+
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
+        // S'assurer que les variables globales sont définies ou utiliser des valeurs de secours
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // --- GLOBAL APP STATE & DB SETUP ---
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let unsubscribe = null;
+        let isMockMode = false; // Indicateur pour savoir si on est en mode factice
+        
+        let state = {
+            currentView: 'activites',
+            observations: [],
+            childProfile: {
+                name: "Leo",
+                age: 4,
+                currentGoal: "Motricité Fine (pinces)",
+                lastObservation: "N/A"
+            }
+        };
+        
+        setLogLevel('Debug'); // Log level for debugging Firestore
+
+        // --- DATA STRUCTURE FOR ACTIVITIES (inchangée) ---
+        const activitiesData = [
+            { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
+            { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
+            { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
+            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication. Ce texte est volontairement plus long pour tester l'alignement des boutons.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
+            { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
+            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
+        ];
+
+        // --- SVG DEFINITIONS (Mise à jour avec le logo Cœur) ---
+        const heartLogoSVG = (classes = 'w-10 h-10 mr-4 text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+            </svg>
+        `;
+        const xIconSVG = (classes = 'w-5 h-5') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M18 6L6 18"></path>
+                <path d="M6 6L18 18"></path>
+            </svg>
+        `;
+        const userIconSVG = (classes = 'w-5 h-5') => `
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        `;
+        const targetIconSVG = (classes = 'text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 ml-1 ${classes}">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+        `;
+        
+        // --- UTILITY FUNCTIONS (Notification, Profile Modal - Légèrement Modifiées) ---
+
+        function showNotification(message, type = 'success') {
+            const box = document.getElementById('notification-box');
+            const iconContainer = document.getElementById('notification-icon');
+            const messageElement = document.getElementById('notification-message');
+            
+            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show', 'border-green-500', 'border-red-500', 'border-blue-500', 'bg-indigo-100', 'border-indigo-500');
+            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800', 'text-indigo-800');
+            iconContainer.innerHTML = '';
+            
+            let bgColor, textColor, iconHtml, borderColor;
+
+            // Déterminer les couleurs et icônes
+            switch (type) {
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; borderColor = 'border-green-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'; break;
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-800'; borderColor = 'border-red-500'; iconHtml = xIconSVG('w-5 h-5'); break;
+                case 'loading': bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; borderColor = 'border-blue-500'; iconHtml = '<div class="loader"></div>'; break;
+                case 'info': bgColor = 'bg-indigo-100'; textColor = 'text-indigo-800'; borderColor = 'border-indigo-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'; break;
+                default: bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; borderColor = 'border-gray-500'; iconHtml = '';
+            }
+            
+            box.classList.add(bgColor, textColor, borderColor);
+            iconContainer.innerHTML = iconHtml;
+            messageElement.textContent = message;
+
+            box.classList.add('show');
+            
+            // Si c'est le message HORS LIGNE, le laisser affiché indéfiniment
+            // Nous utilisons désormais 'info' pour ce mode pour une apparence moins agressive.
+            if (message.indexOf('HORS LIGNE') !== -1) {
+                box.setAttribute('data-permanent', 'true');
+            } else {
+                 box.removeAttribute('data-permanent');
+                 // Masquer après 5s si ce n'est pas un message permanent ou de chargement
+                 if (type !== 'loading') {
+                     setTimeout(() => { box.classList.remove('show'); }, 5000);
+                 }
+            }
+        }
+        
+        window.toggleProfileModal = (show) => {
+            const modal = document.getElementById('profile-modal');
+            const backdrop = document.getElementById('modal-backdrop');
+            if (show) {
+                // Mise à jour des données du profil dans la modale avant l'affichage
+                document.getElementById('profile-name').value = state.childProfile.name;
+                document.getElementById('profile-age').value = state.childProfile.age;
+                document.getElementById('profile-goal').value = state.childProfile.currentGoal;
+
+                modal.style.display = 'block';
+                backdrop.style.display = 'block';
+            } else {
+                modal.style.display = 'none';
+                backdrop.style.display = 'none';
+            }
+        }
+
+        window.saveProfile = () => {
+            const name = document.getElementById('profile-name').value.trim();
+            const age = parseInt(document.getElementById('profile-age').value, 10);
+            const goal = document.getElementById('profile-goal').value.trim();
+
+            if (!name || isNaN(age) || age < 0 || !goal) {
+                showNotification("Veuillez remplir tous les champs du profil correctement.", 'error');
+                return;
+            }
+
+            state.childProfile.name = name;
+            state.childProfile.age = age;
+            state.childProfile.currentGoal = goal;
+
+            // Mettre à jour l'affichage
+            renderChildProfile();
+            toggleProfileModal(false);
+            showNotification("Profil de l'enfant mis à jour.", 'success');
+        }
+
+        /**
+         * Mise à jour du texte d'affichage de l'ID utilisateur
+         * @param {string | null} id L'ID utilisateur ou null si non connecté
+         */
+        function updateUserIdDisplay(id) {
+            const displayElement = document.getElementById('user-id-display');
+            if (displayElement) {
+                if (id) {
+                    displayElement.textContent = `ID Session: ${id}`;
+                    displayElement.classList.remove('text-gray-400');
+                    displayElement.classList.add('text-indigo-600');
+                } else {
+                    displayElement.textContent = `Mode Invité`;
+                    displayElement.classList.remove('text-indigo-600');
+                    displayElement.classList.add('text-gray-400');
+                }
+            } else {
+                console.error("Élément #user-id-display manquant dans le DOM.");
+            }
+        }
+        
+        /**
+         * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
+         * Mode MOCK activé si la configuration est manquante ou invalide.
+         */
+        async function setupFirebase() {
+            if (app) return; // Empêche la réinitialisation
+            
+            let config = null;
+            
+            // 1. Déterminer si nous pouvons nous connecter (Mode EN LIGNE)
+            if (firebaseConfigString && firebaseConfigString.trim().length > 0) {
+                try {
+                    config = JSON.parse(firebaseConfigString);
+                    isMockMode = false;
+                } catch (e) {
+                    // La configuration existe mais est mal formatée (JSON invalide)
+                    console.warn("Configuration Firebase trouvée, mais JSON invalide. Forçage du mode HORS LIGNE.", e);
+                    isMockMode = true;
+                }
+            } else {
+                // Config manquante/vide : c'est l'état attendu, pas une erreur du code.
+                isMockMode = true;
+            }
+
+            // 2. Initialisation et Authentification
+            if (!isMockMode) {
+                // Tenter l'initialisation EN LIGNE
+                try {
+                    app = initializeApp(config);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    // Tentative d'authentification
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (authError) {
+                        console.error("Erreur d'authentification:", authError);
+                        showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
+                        isMockMode = true; // Bascule en mode Mock si l'auth échoue
+                    }
+                } catch (error) {
+                    // Échec d'initialisation même avec la config fournie (ex: mauvaise clé)
+                    console.error("Échec critique de initializeApp:", error);
+                    isMockMode = true; // Forcer le mode mock si l'init échoue
+                }
+            }
+            
+            // 3. Gestion de l'état MOCK/EN LIGNE et de l'écoute
+            if (isMockMode) {
+                // Utiliser 'info' pour un démarrage harmonieux
+                showNotification("Mode HORS LIGNE ACTIF: Base de données désactivée. (Fonctionnalités locales uniquement)", 'info'); 
+                state.observations = [];
+                updateUserIdDisplay(null);
+                renderObservations([]);
+            } else {
+                 // Écouteur d'état d'authentification pour gérer l'UID et les listeners
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        startDataListener();
+                        updateUserIdDisplay(userId); 
+                        // Synchronisation initiale réussie
+                        showNotification("Base de données connectée. Mode EN LIGNE actif.", 'success');
+                    } else {
+                        userId = null;
+                        state.observations = [];
+                        updateUserIdDisplay(null); 
+                        if (unsubscribe) {
+                            unsubscribe();
+                            unsubscribe = null;
+                        }
+                        if (state.currentView === 'catalogue') renderObservations([]);
+                    }
+                    renderApp(); // Rafraîchir pour mettre à jour l'état de l'utilisateur
+                });
+            }
+
+            renderApp(); // Rafraîchir l'interface initiale
+        }
+
+        function getCollectionRef() {
+            // S'assurer que db est initialisé et qu'on n'est pas en mode factice
+            if (isMockMode || !db || !userId || !app) {
+                // Si en mode Mock ou non connecté, on retourne null.
+                return null;
+            }
+            // Chemin de collection public pour un partage collaboratif
+            return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
+        }
+
+        function startDataListener() {
+            // Ne pas tenter de se connecter si on est en mode factice
+            if (isMockMode) return; 
+            
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            const colRef = getCollectionRef();
+            if (!colRef) return;
+
+            // La requête pour le tri sera exécutée côté client pour éviter le besoin d'index Firestore
+            const q = query(colRef); 
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const observations = [];
+                snapshot.forEach(doc => {
+                    observations.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Tri par date en JavaScript (le plus récent en premier)
+                observations.sort((a, b) => {
+                    // Utiliser le champ 'timestamp' qui est créé par serverTimestamp()
+                    const dateA = a.createdAt?.seconds || 0;
+                    const dateB = b.createdAt?.seconds || 0;
+                    return dateB - dateA;
+                });
+                
+                state.observations = observations;
+                if (state.currentView === 'catalogue') {
+                    renderObservations(observations);
+                }
+                
+                // Mettre à jour la date de dernière observation dans l'état
+                if (observations.length > 0) {
+                    const latestDate = observations[0].createdAt?.toDate ? 
+                        observations[0].createdAt.toDate().toLocaleDateString('fr-FR') : 
+                        'N/A';
+                    state.childProfile.lastObservation = latestDate;
+                    // Rafraîchir la vue d'activités si nécessaire
+                    if (state.currentView === 'activites') {
+                         renderChildProfile();
+                    }
+                } else {
+                    state.childProfile.lastObservation = 'N/A';
+                    if (state.currentView === 'activites') {
+                         renderChildProfile();
+                    }
+                }
+
+            }, (error) => {
+                console.error("Erreur de l'écouteur Firestore:", error);
+                showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
+            });
+        }
+
+        window.addObservation = async (activityId, activityTitle) => {
+            const comment = document.getElementById(`comment-${activityId}`).value.trim();
+            const rating = document.getElementById(`rating-${activityId}`).value;
+
+            if (comment.length < 5) {
+                showNotification("Le commentaire doit contenir au moins 5 caractères.", 'error');
+                return;
+            }
+
+            const observationData = {
+                activityId: activityId,
+                activityTitle: activityTitle,
+                comment: comment,
+                rating: parseInt(rating, 10),
+                createdAt: isMockMode ? new Date() : serverTimestamp(),
+                observerId: isMockMode ? 'MOCK_USER' : userId,
+                childName: state.childProfile.name
+            };
+
+            // 1. Ajouter l'observation localement si en mode Mock
+            if (isMockMode) {
+                // Simuler l'ajout et le tri pour le rendu immédiat
+                state.observations.unshift({ id: Date.now().toString(), ...observationData });
+                state.observations.sort((a, b) => (b.createdAt.getTime() || 0) - (a.createdAt.getTime() || 0)); // Tri par date
+                renderObservations(state.observations); // Mettre à jour immédiatement le catalogue si ouvert
+                showNotification("Observation ajoutée (Mode HORS LIGNE).", 'success');
+                document.getElementById(`comment-${activityId}`).value = ''; // Réinitialiser
+                return;
+            }
+
+            // 2. Ajouter l'observation à Firestore
+            showNotification("Ajout de l'observation...", 'loading');
+            const colRef = getCollectionRef();
+            if (!colRef) {
+                showNotification("Erreur: Non connecté à la base de données. Impossible d'ajouter.", 'error');
+                return;
+            }
+
+            try {
+                await addDoc(colRef, observationData);
+                document.getElementById(`comment-${activityId}`).value = ''; // Réinitialiser
+                // Le listener onSnapshot gérera la mise à jour et la notification de succès
+                showNotification("Observation enregistrée avec succès !", 'success');
+
+            } catch (e) {
+                console.error("Erreur lors de l'ajout de l'observation:", e);
+                showNotification(`Erreur lors de l'enregistrement: ${e.message}`, 'error');
+            }
+        }
+
+        window.deleteObservation = async (obsId) => {
+            // Utiliser une modale custom pour la confirmation si l'environnement le permet
+            if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette observation? Cette action est irréversible.")) return;
+
+            // 1. Suppression locale si en mode Mock
+            if (isMockMode) {
+                const initialLength = state.observations.length;
+                state.observations = state.observations.filter(obs => obs.id !== obsId);
+                if (state.observations.length < initialLength) {
+                    renderObservations(state.observations);
+                    showNotification("Observation supprimée (Mode HORS LIGNE).", 'success');
+                } else {
+                    showNotification("Erreur : Observation non trouvée.", 'error');
+                }
+                return;
+            }
+
+            // 2. Suppression dans Firestore
+            showNotification("Suppression en cours...", 'loading');
+            const colRef = getCollectionRef();
+            if (!colRef) {
+                showNotification("Erreur: Non connecté à la base de données. Impossible de supprimer.", 'error');
+                return;
+            }
+
+            try {
+                const docRef = doc(colRef, obsId);
+                await deleteDoc(docRef);
+                // Le listener onSnapshot gérera la mise à jour et la notification de succès
+                showNotification("Observation supprimée avec succès !", 'success');
+            } catch (e) {
+                console.error("Erreur lors de la suppression de l'observation:", e);
+                showNotification(`Erreur lors de la suppression: ${e.message}`, 'error');
+            }
+        }
+
+
+        // --- RENDERING FUNCTIONS (Mises à jour) ---
+
+        function renderChildProfile() {
+            const container = document.getElementById('child-profile-card');
+            if (!container) return;
+
+            // Déterminer la couleur basée sur l'objectif (pour la barre de progression ou le tag)
+            const goalColor = {
+                "Motricité Fine (pinces)": "bg-pink-100 text-pink-700",
+                "Logique Séquentielle": "bg-indigo-100 text-indigo-700",
+                "Jeu de Rôle": "bg-green-100 text-green-700",
+                "Autonomie Vestimentaire": "bg-blue-100 text-blue-700"
+            }[state.childProfile.currentGoal] || "bg-gray-100 text-gray-700";
+
+            container.innerHTML = `
+                <div class="flex items-start">
+                    <!-- Avatar/Icône -->
+                    <div class="p-3 bg-indigo-500 rounded-full text-white mr-4 shadow-lg">
+                        ${userIconSVG('w-6 h-6 text-white')}
+                    </div>
+                    
+                    <!-- Détails du Profil -->
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">${state.childProfile.name} (${state.childProfile.age} ans)</h2>
+                        <p class="text-sm text-gray-500">Dernière observation: ${state.childProfile.lastObservation}</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <div class="flex items-center text-sm font-semibold">
+                        Objectif Actuel: 
+                        <span class="tag ml-2 ${goalColor} flex items-center">
+                            ${state.childProfile.currentGoal} ${targetIconSVG('text-current')}
+                        </span>
+                    </div>
+                </div>
+
+                <button onclick="toggleProfileModal(true)" 
+                        class="mt-6 w-full px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 transition duration-150 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Modifier le Profil
+                </button>
+            `;
+        }
+
+        function renderActivities() {
+            const container = document.getElementById('activities-list');
+            if (!container) return;
+
+            container.innerHTML = activitiesData.map(activity => {
+                // Déterminer les couleurs dynamiques
+                const tagColor = {
+                    "Cognitive": "bg-pink-100 text-pink-700",
+                    "Créative": "bg-yellow-100 text-yellow-700",
+                    "Sociale": "bg-green-100 text-green-700",
+                    "Autonomie": "bg-blue-100 text-blue-700",
+                    "Motricité": "bg-purple-100 text-purple-700"
+                }[activity.category] || "bg-gray-100 text-gray-700";
+                
+                const levelColor = activity.level === 1 ? "bg-gray-200 text-gray-600" : 
+                                   activity.level === 2 ? "bg-yellow-200 text-yellow-700" : 
+                                   "bg-red-200 text-red-700";
+
+
+                return `
+                    <div class="activity-card bg-white border border-gray-200 rounded-xl p-6 flex flex-col">
+                        <div class="flex items-start justify-between">
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">${activity.title}</h3>
+                            <div class="flex space-x-2 text-2xl">
+                                ${activity.icons.join('')}
+                            </div>
+                        </div>
+
+                        <!-- Tags et Niveaux -->
+                        <div class="flex flex-wrap items-center space-x-2 mb-4">
+                            <span class="tag ${tagColor}">${activity.category}</span>
+                            <span class="tag ${levelColor}">Niveau ${activity.level}</span>
+                            <span class="tag bg-gray-100 text-gray-600">${activity.duration}</span>
+                        </div>
+
+                        <!-- Description et Séquence -->
+                        <p class="text-gray-600 text-sm mb-4 flex-grow">${activity.description}</p>
+                        
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4">
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Étapes Clés (Séquence)</p>
+                            <ul class="list-none text-xs text-gray-600 space-y-1 pl-0">
+                                ${activity.sequence.map((step, index) => `<li class="flex items-center"><span class="font-bold mr-1">${index + 1}.</span> ${step}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <!-- Bloc d'Observation -->
+                        <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                            <h4 class="text-lg font-semibold text-indigo-600">Enregistrer une Observation</h4>
+                            
+                            <textarea id="comment-${activity.id}" 
+                                      class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                                      rows="2" placeholder="Ex: A réussi à trier 4 couleurs différentes avec une aide minimale..."></textarea>
+                            
+                            <select id="rating-${activity.id}"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                                <option value="5">5 - Maîtrise totale</option>
+                                <option value="4">4 - Très bien, besoin de peu d'aide</option>
+                                <option value="3" selected>3 - Satisfaisant, besoin d'aide modérée</option>
+                                <option value="2">2 - Difficile, besoin d'aide fréquente</option>
+                                <option value="1">1 - Échec, refus ou besoin d'aide complète</option>
+                            </select>
+
+                            <button onclick="addObservation(${activity.id}, '${activity.title.replace(/'/g, "\\'")}')"
+                                    class="w-full px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 transition duration-150 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                                    ${isMockMode ? '' : userId ? '' : 'disabled'}>
+                                Enregistrer l'Observation
+                            </button>
+                            <p class="text-xs text-center text-gray-400 mt-1">${isMockMode ? 'Mode HORS LIGNE: Enregistrement local.' : userId ? 'Enregistrement en ligne actif.' : 'Connectez-vous pour enregistrer.'}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderObservations(observations) {
+            const container = document.getElementById('observations-catalogue');
+            if (!container) return;
+
+            if (observations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-16 bg-white rounded-xl shadow-lg">
+                        <p class="text-2xl font-semibold text-gray-700 mb-2">Aucune Observation Enregistrée.</p>
+                        <p class="text-gray-500">Commencez par enregistrer des observations depuis l'onglet "Activités" pour créer votre catalogue.</p>
+                        <p class="text-sm text-gray-400 mt-4">${isMockMode ? 'En mode HORS LIGNE, les données ne sont pas partagées.' : 'Les observations sont partagées avec les utilisateurs de la session.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = observations.map(obs => {
+                const activity = activitiesData.find(a => a.id === obs.activityId) || { category: 'Inconnue', color: 'gray' };
+                const tagColor = {
+                    "Cognitive": "bg-pink-100 text-pink-700",
+                    "Créative": "bg-yellow-100 text-yellow-700",
+                    "Sociale": "bg-green-100 text-green-700",
+                    "Autonomie": "bg-blue-100 text-blue-700",
+                    "Motricité": "bg-purple-100 text-purple-700",
+                    "Inconnue": "bg-gray-100 text-gray-700"
+                }[activity.category];
+                
+                const ratingColor = obs.rating >= 4 ? "bg-green-500" : obs.rating >= 2 ? "bg-yellow-500" : "bg-red-500";
+                
+                const date = obs.createdAt?.toDate ? 
+                             obs.createdAt.toDate().toLocaleDateString('fr-FR', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', 
+                                hour: '2-digit', minute: '2-digit'
+                             }) : 
+                             obs.createdAt?.toLocaleDateString ? 
+                             obs.createdAt.toLocaleDateString('fr-FR', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', 
+                                hour: '2-digit', minute: '2-digit'
+                             }) : 
+                             'Date inconnue';
+
+                return `
+                    <div class="observation-card hover:shadow-lg transition duration-200 border-l-4 border-indigo-500">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-900">${obs.activityTitle}</h4>
+                                <span class="tag ${tagColor}">${activity.category}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-500">Fait par: ${obs.observerId.substring(0, 8)}...</p>
+                                <p class="text-xs text-gray-500">${date}</p>
+                            </div>
+                        </div>
+
+                        <p class="text-gray-700 mb-4 italic">"${obs.comment}"</p>
+
+                        <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                            <div class="flex items-center">
+                                <span class="text-sm font-semibold text-gray-700 mr-2">Évaluation:</span>
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${ratingColor}">
+                                    ${obs.rating}
+                                </div>
+                            </div>
+                            <button onclick="deleteObservation('${obs.id}')"
+                                    class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition duration-150 focus:outline-none">
+                                ${xIconSVG('w-4 h-4')}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- PDF GENERATION ---
+        
+        // Fonction utilitaire pour formater une date en chaîne lisible
+        const formatDate = (date) => {
+            if (date instanceof Date) {
+                return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+            if (date && date.toDate) { // Pour les Timestamps Firestore
+                return date.toDate().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+            return 'N/A';
+        };
+
+        window.generatePDFReport = async () => {
+            if (state.observations.length === 0) {
+                showNotification("Veuillez enregistrer des observations avant de générer un rapport.", 'info');
+                return;
+            }
+
+            showNotification("Génération du rapport PDF en cours...", 'loading');
+
+            // --- 1. Préparation du Contenu HTML pour le PDF ---
+            const reportContent = document.getElementById('report-content');
+            
+            // Le HTML pour le rapport PDF
+            reportContent.innerHTML = `
+                <div class="p-6">
+                    <div class="text-center mb-10">
+                        ${heartLogoSVG('w-12 h-12 mx-auto text-indigo-600')}
+                        <h1 class="text-3xl font-extrabold text-gray-900 mt-2">Rapport d'Évaluation ARGILE-B</h1>
+                        <p class="text-lg text-gray-600">Profil de l'enfant: ${state.childProfile.name}</p>
+                        <p class="text-sm text-gray-500">Généré le: ${formatDate(new Date())}</p>
+                        <p class="text-sm text-gray-500">ID Session: ${userId || 'Mode HORS LIGNE'}</p>
+                    </div>
+
+                    <!-- Synthèse du Profil -->
+                    <div class="mb-8 border-b-2 border-indigo-100 pb-4">
+                        <h2 class="text-2xl font-bold text-indigo-700 mb-3">Synthèse du Profil</h2>
+                        <ul class="text-gray-700 space-y-2">
+                            <li><span class="font-semibold">Nom de l'enfant :</span> ${state.childProfile.name}</li>
+                            <li><span class="font-semibold">Âge :</span> ${state.childProfile.age} ans</li>
+                            <li><span class="font-semibold">Objectif Principal :</span> ${state.childProfile.currentGoal}</li>
+                            <li><span class="font-semibold">Nombre total d'observations :</span> ${state.observations.length}</li>
+                            <li><span class="font-semibold">Période couverte :</span> Du ${formatDate(state.observations[state.observations.length - 1].createdAt)} au ${formatDate(state.observations[0].createdAt)}</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Liste des Observations -->
+                    <h2 class="text-2xl font-bold text-indigo-700 mb-4">Détail des Observations (${state.observations.length})</h2>
+                    <div id="pdf-observations-list">
+                        ${state.observations.map((obs, index) => {
+                            const activity = activitiesData.find(a => a.id === obs.activityId) || { category: 'Inconnue' };
+                            const ratingColor = obs.rating >= 4 ? "bg-green-500" : obs.rating >= 2 ? "bg-yellow-500" : "bg-red-500";
+
+                            return `
+                                <div class="observation-card border-l-4 border-gray-300">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <p class="text-sm font-semibold text-gray-800">Observation #${state.observations.length - index} : ${obs.activityTitle}</p>
+                                        <div class="flex items-center space-x-2">
+                                             <span class="text-xs text-gray-500">${activity.category}</span>
+                                            <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${ratingColor}">
+                                                ${obs.rating}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-700 italic">"${obs.comment}"</p>
+                                    <p class="text-xs text-gray-500 mt-2">Enregistré le: ${formatDate(obs.createdAt)} par ${obs.observerId.substring(0, 8)}...</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Rendre visible le contenu (important pour html2canvas)
+            reportContent.style.display = 'block';
+
+            // --- 2. Conversion HTML vers Canvas (html2canvas) ---
+            const canvas = await html2canvas(reportContent, {
+                scale: 2, // Haute résolution
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            });
+
+            // Réinitialiser l'affichage après la capture
+            reportContent.innerHTML = '';
+            reportContent.style.display = 'none';
+
+            // --- 3. Génération du PDF (jsPDF) ---
+            const { jsPDF } = window.jspdf;
+            
+            // Dimensions pour A4 (210mm x 297mm)
+            const pdf = new jsPDF('p', 'mm', 'a4'); 
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            const imgWidth = pdfWidth - 20; // Laisser 10mm de marge de chaque côté
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            let heightLeft = imgHeight;
+            let position = 10; // Marge supérieure initiale
+            
+            // Boucle pour gérer les pages
+            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 10, position + 10, imgWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+
+            // Enregistrement
+            pdf.save(`Rapport_ARGILE-B_${state.childProfile.name}_${new Date().toISOString().substring(0, 10)}.pdf`);
+
+            // Masquer la notification de chargement et afficher le succès
+            const loaderElement = document.querySelector('#notification-box .loader');
+            if (loaderElement) loaderElement.parentElement.innerHTML = '';
+            showNotification("Rapport PDF généré avec succès !", 'success');
+        };
+
+        // --- VIEW MANAGEMENT ---
+
+        window.switchView = (viewName) => {
+            state.currentView = viewName;
+
+            // Mise à jour de la navigation
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            document.getElementById(`nav-${viewName}`).classList.add('active');
+
+            // Mise à jour du contenu principal
+            document.getElementById('activites-view').style.display = viewName === 'activites' ? 'block' : 'none';
+            document.getElementById('catalogue-view').style.display = viewName === 'catalogue' ? 'block' : 'none';
+
+            if (viewName === 'activites') {
+                renderChildProfile();
+                renderActivities();
+            } else if (viewName === 'catalogue') {
+                renderObservations(state.observations);
+            }
+        }
+
+        function renderApp() {
+            // S'assurer que le HTML initial est injecté (logo)
+            document.getElementById('nav-logo-placeholder').innerHTML = heartLogoSVG();
+            // Et rafraîchir la vue courante
+            switchView(state.currentView);
+        }
+
+        // --- INITIALISATION ---
+        window.onload = function() {
+            setupFirebase();
+            renderApp();
+        };
+
+    </script>
 </head>
 <body class="min-h-screen">
-    <nav class="bg-white shadow sticky top-0 z-10">
+    
+    <!-- Modale du Profil (Doit être dans le body) -->
+    <div id="modal-backdrop" class="modal-backdrop" onclick="toggleProfileModal(false)"></div>
+    <div id="profile-modal" class="modal">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-2xl font-bold text-gray-800">Modifier le Profil de l'Enfant</h3>
+            <button onclick="toggleProfileModal(false)" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                ${xIconSVG('w-6 h-6')}
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label for="profile-name" class="block text-sm font-medium text-gray-700">Nom de l'Enfant</label>
+                <input type="text" id="profile-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500" value="Leo">
+            </div>
+            <div>
+                <label for="profile-age" class="block text-sm font-medium text-gray-700">Âge (en années)</label>
+                <input type="number" id="profile-age" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500" value="4">
+            </div>
+            <div>
+                <label for="profile-goal" class="block text-sm font-medium text-gray-700">Objectif Actuel</label>
+                <input type="text" id="profile-goal" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500" value="Motricité Fine (pinces)">
+            </div>
+        </div>
+        <button onclick="saveProfile()" class="mt-6 w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150">
+            Enregistrer les Modifications
+        </button>
+    </div>
+
+    <!-- Notification Box -->
+    <div id="notification-box" class="fixed top-6 right-6 p-4 rounded-lg shadow-xl border-l-4">
+        <div class="flex items-center">
+            <div id="notification-icon" class="flex-shrink-0 mr-3"></div>
+            <p id="notification-message" class="text-sm font-medium"></p>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
@@ -48,7 +895,7 @@
                 <!-- Navigation Links -->
                 <div class="flex space-x-6">
                     <a href="#" id="nav-activites" onclick="switchView('activites')"
-                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150 active">
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
                         Activités
                     </a>
                     <a href="#" id="nav-catalogue" onclick="switchView('catalogue')"
@@ -56,150 +903,87 @@
                         Catalogue d'Observations
                     </a>
                 </div>
-                <!-- User ID Display - ÉLÉMENT AJOUTÉ POUR FIXER L'ERREUR -->
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-gray-700 hidden sm:inline">Utilisateur ID:</span>
-                    <span id="user-id-display" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">Chargement...</span>
+                <!-- User ID Display (La Correction se trouve ici) -->
+                <div class="hidden sm:block text-xs font-medium rounded-full py-1 px-3 bg-indigo-50 border border-indigo-200">
+                    <!-- L'élément manquant qui causait l'erreur 'textContent' est maintenant présent -->
+                    <span id="user-id-display" class="text-gray-400">Mode Invité</span>
                 </div>
             </div>
         </div>
     </nav>
-
+    
     <!-- Main Content Container (Controlled by JavaScript) -->
-    <div id="main-content-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <!-- Contenu de la vue 'activites' (par défaut) -->
-        <div id="view-activites" class="view-content">
-            <h1 class="text-3xl font-bold text-gray-900 mb-6">Activités et Rapport</h1>
-            <div id="report-content" class="min-h-[500px]">
-                <p class="text-gray-500">Le contenu des activités sera affiché ici.</p>
+    <div id="main-content-container" class="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+        
+        <!-- ############# VUE: ACTIVITÉS ############# -->
+        <div id="activites-view" class="space-y-12">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Carte du Profil de l'Enfant -->
+                <div id="child-profile-card" class="lg:col-span-1 bg-white border border-gray-200 rounded-xl p-6 shadow-lg h-full">
+                    <!-- Contenu injecté par renderChildProfile() -->
+                </div>
+
+                <!-- Boutons d'Action et Infos Générales -->
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-lg">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">Actions Rapides</h2>
+                        <div class="flex flex-wrap gap-4">
+                            <!-- Bouton PDF -->
+                            <button onclick="generatePDFReport()" 
+                                    class="flex items-center px-6 py-3 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                Générer Rapport PDF
+                            </button>
+
+                            <!-- Bouton Aide / FAQ -->
+                            <button onclick="showNotification('Le système est conçu pour observer l\'enfant dans différentes catégories (Cognitive, Sociale, Motricité, etc.) pour un suivi holistique.', 'info')" 
+                                    class="flex items-center px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.22 0 4 1.254 4 2.807 0 1.554-1.78 2.807-4 2.807-1.742 0-3.223-.835-3.772-2m0 0a1 1 0 011-1h6a1 1 0 011 1m-7 7h.01"></path></svg>
+                                Aide / FAQ
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-lg">
+                         <h2 class="text-xl font-bold text-gray-900 mb-2">Note sur la collaboration</h2>
+                         <p class="text-gray-600 text-sm">Vos observations sont automatiquement synchronisées et partagées avec d'autres utilisateurs de cette session (<span class="font-bold text-indigo-600">ID Session visible en haut à droite</span>) en temps réel. Cette approche collaborative permet un suivi continu et complet.</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Liste des Activités -->
+            <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6 border-b pb-2">Activités à Observer</h2>
+            <div id="activities-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Contenu injecté par renderActivities() -->
+            </div>
+            
+        </div>
+        
+        <!-- ############# VUE: CATALOGUE D'OBSERVATIONS ############# -->
+        <div id="catalogue-view" class="space-y-6" style="display:none;">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-900">Catalogue des Observations</h2>
+                <button onclick="generatePDFReport()" 
+                        class="flex items-center px-4 py-2 bg-red-500 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Exporter en PDF
+                </button>
+            </div>
+
+            <!-- Liste des observations injectée ici -->
+            <div id="observations-catalogue" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Contenu injecté par renderObservations() -->
             </div>
         </div>
 
-        <!-- Contenu de la vue 'catalogue' -->
-        <div id="view-catalogue" class="view-content hidden">
-            <h1 class="text-3xl font-bold text-gray-900 mb-6">Catalogue d'Observations</h1>
-            <div id="observations-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="observation-card">Observation 1</div>
-                <div class="observation-card">Observation 2</div>
-                <div class="observation-card">Observation 3</div>
-            </div>
-        </div>
     </div>
     
-    <!-- Script Module pour Firebase et Logique de l'Application -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- Conteneur masqué pour la génération PDF -->
+    <div id="report-content" class="absolute top-0 left-0 w-full max-w-none" style="display:none;">
+        <!-- Le contenu du PDF sera temporairement injecté ici -->
+    </div>
 
-        // Variables globales MANDATOIRES pour Firebase
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Note: La configuration Firebase est supposée être un objet JSON valide
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let app;
-        let db;
-        let auth;
-        let userId = null;
-        let isAuthReady = false;
-
-        /**
-         * Fonction pour initialiser Firebase et gérer l'authentification.
-         */
-        async function initializeFirebase() {
-            if (!firebaseConfig) {
-                console.error("Erreur: La configuration Firebase est manquante.");
-                return;
-            }
-
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // Écoute des changements d'état d'authentification
-                onAuthStateChanged(auth, async (user) => {
-                    // Cible de l'affichage de l'ID utilisateur
-                    const userIdDisplay = document.getElementById('user-id-display');
-
-                    if (user) {
-                        userId = user.uid;
-                        // Correction: Vérification si l'élément existe avant de modifier textContent
-                        if (userIdDisplay) {
-                            userIdDisplay.textContent = user.uid;
-                        }
-                        console.log("Utilisateur authentifié avec l'ID:", userId);
-
-                        // Mettre ici la logique de chargement des données Firestore après authentification
-                        // Exemple: loadObservations(userId);
-
-                    } else {
-                        userId = null;
-                         // Correction: Vérification si l'élément existe avant de modifier textContent
-                        if (userIdDisplay) {
-                            userIdDisplay.textContent = 'Non connecté';
-                        }
-                        console.log("Utilisateur déconnecté.");
-                    }
-                    isAuthReady = true;
-                });
-
-                // Tentative d'authentification
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    // Fallback vers l'authentification anonyme si le token n'est pas fourni
-                    await signInAnonymously(auth);
-                }
-
-            } catch (error) {
-                console.error("Erreur d'initialisation ou d'authentification Firebase:", error);
-                const userIdDisplay = document.getElementById('user-id-display');
-                if (userIdDisplay) {
-                    userIdDisplay.textContent = 'Erreur Auth';
-                }
-            }
-        }
-
-        /**
-         * Fonction pour changer de vue (Activités/Catalogue) et mettre à jour l'état actif.
-         * @param {string} viewId - L'ID de la vue à afficher ('activites' ou 'catalogue').
-         */
-        window.switchView = function(viewId) {
-            document.querySelectorAll('.view-content').forEach(view => {
-                view.classList.add('hidden');
-            });
-            const targetView = document.getElementById(`view-${viewId}`);
-            if (targetView) {
-                targetView.classList.remove('hidden');
-            }
-
-            // Mettre à jour les liens de navigation actifs
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            const navLink = document.getElementById(`nav-${viewId}`);
-            if (navLink) {
-                 navLink.classList.add('active');
-            }
-        };
-
-        // Initialisation de l'application
-        document.addEventListener('DOMContentLoaded', () => {
-             // Initialisation de Firebase après le chargement du DOM
-             initializeFirebase();
-
-             // Initialisation du logo SVG (simple placeholder)
-             const logoPlaceholder = document.getElementById('nav-logo-placeholder');
-             if (logoPlaceholder) {
-                 logoPlaceholder.innerHTML = `
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H4a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 011 1v1a2 2 0 104 0V4z" />
-                     </svg>
-                 `;
-             }
-        });
-    </script>
 </body>
 </html>

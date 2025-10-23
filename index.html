@@ -797,6 +797,12 @@
             state.currentView = 'activites'; 
             renderApp(); 
             
+            // FIX: Inject SVG into static Nav Bar
+            const navLogo = document.getElementById('nav-logo-placeholder');
+            if (navLogo) {
+                 navLogo.innerHTML = heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current');
+            }
+
             // Tente de configurer Firebase en arrière-plan
             setupFirebase();
         };
@@ -853,7 +859,8 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
                 <div class="flex-shrink-0 flex items-center">
-                    ${heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current')}
+                    <!-- Placeholder pour le logo SVG injecté en JS -->
+                    <div id="nav-logo-placeholder"></div>
                     <span class="text-2xl font-extrabold text-gray-900">ARGILE-<span class="text-indigo-600">B</span></span>
                 </div>
                 <!-- Navigation Links -->

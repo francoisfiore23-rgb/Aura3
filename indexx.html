@@ -357,6 +357,10 @@
                 // Utiliser la fonction addDoc pour laisser Firestore générer l'ID
                 await addDoc(collection(db, getCollectionPath()), newObservation);
                 
+                // --- CORRECTION: Masquer explicitement l'indicateur après un enregistrement réussi ---
+                updateOfflineIndicator();
+                // -----------------------------------------------------------------------------------
+                
                 console.log("Nouvelle observation enregistrée:", newObservation);
                 
                 showCustomModal('Succès!', 'L\'observation a été enregistrée avec succès.', [
@@ -492,6 +496,8 @@
                             try {
                                 const docRef = doc(db, getCollectionPath(), observationId);
                                 await deleteDoc(docRef);
+                                // Forcer la mise à jour de l'indicateur après suppression réussie
+                                updateOfflineIndicator();
                                 console.log("Observation supprimée avec succès:", observationId);
                             } catch (e) {
                                 console.error("Erreur lors de la suppression:", e);

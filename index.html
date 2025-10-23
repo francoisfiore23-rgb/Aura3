@@ -4,16 +4,99 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARGILE-B - Application Unifiée</title>
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- HTML2Canvas & jsPDF for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
+            min-height: 100vh;
         }
+        .nav-link.active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4f46e5 !important;
+        }
+        .tag {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        /* Notification Box Styling */
+        #notification-box {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+            transform: translateX(120%);
+            transition: transform 0.5s ease-in-out;
+            border-radius: 0.5rem;
+        }
+        #notification-box.show {
+            transform: translateX(0);
+        }
+        .notification-success { border-color: #10b981; background-color: #ecfdf5; color: #065f46; }
+        .notification-error { border-color: #ef4444; background-color: #fee2e2; color: #991b1b; }
+        .notification-info { border-color: #3b82f6; background-color: #eff6ff; color: #1e40af; }
+        .notification-loading { border-color: #f59e0b; background-color: #fffbeb; color: #b45309; }
+        
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            display: none;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            z-index: 110;
+            width: 90%;
+            max-width: 500px;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal.show {
+            display: block;
+            opacity: 1;
+        }
+        
+        /* Loader for PDF Button */
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         /* Styles spécifiques au rapport PDF */
         #report-content {
             background-color: #ffffff;
@@ -27,421 +110,308 @@
             border: 1px solid #e2e8f0;
             margin-bottom: 12px;
             padding: 16px;
-            border-radius: 8px;
-        }
-        /* Styles pour la navigation */
-        .nav-link.active {
-            font-weight: 700;
-            border-bottom: 3px solid #4f46e5; /* Indigo */
-            color: #4f46e5;
-        }
-        /* Notification & Loader styles */
-        #notification-box {
-            position: fixed; top: 1.5rem; right: 1.5rem; max-width: 350px; z-index: 1000;
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out; transform: translateX(100%); opacity: 0;
-        }
-        #notification-box.show { transform: translateX(0); opacity: 1; }
-        .loader {
-            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%;
-            width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Styles des cartes d'activité */
-        .activity-card {
-            /* Ombre initiale pour le relief */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-            /* Transition plus fluide pour les effets de survol */
-            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s ease-in-out;
-            /* La bordure par défaut reste visible pour le survol */
-            border-color: #e2e8f0;
-        }
-        /* Classe de Survol (Hover Effects) pour la Chaleur et le Relief */
-        .activity-card:hover {
-            /* Relief: augmente la shadow (shadow-xl) et soulève légèrement (translate-y-1) */
-            transform: translateY(-4px); 
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08); 
-            /* Chaleur: fond légèrement teinté de blanc cassé et bordure douce */
-            background-color: #fcfcfd; 
-            border-color: #c7d2fe; /* Une teinte plus douce d'indigo (indigo-300) */
-        }
-        .tag {
-            padding: 0.25rem 0.6rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        /* Styles de la modale pour le profil */
-        .modal-backdrop {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 990; display: none;
-        }
-        .modal {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; border-radius: 12px; padding: 2rem; z-index: 1000; max-width: 500px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            display: none;
+            border-radius: 0.5rem;
         }
     </style>
 
-    <!-- PDF Generation Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <!-- Firebase SDKs -->
     <script type="module">
+        // ==========================================================
+        // === FIREBASE SETUP & IMPORTS ===
+        // ==========================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, serverTimestamp, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
-        // S'assurer que les variables globales sont définies ou utiliser des valeurs de secours
+        // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
-        // --- GLOBAL APP STATE & DB SETUP ---
-        let app = null;
+        // App State
         let db = null;
         let auth = null;
         let userId = null;
-        let unsubscribe = null;
-        let isMockMode = false; // Indicateur pour savoir si on est en mode factice
+        let isAuthReady = false;
+        let isMockMode = !firebaseConfig || !initialAuthToken; // Use mock mode if Firebase environment vars are missing
         
-        let state = {
-            currentView: 'activites',
-            observations: [],
+        const state = {
+            currentView: 'activites', // 'activites' or 'catalogue'
             childProfile: {
-                name: "Leo",
+                name: "Noah",
                 age: 4,
-                currentGoal: "Motricité Fine (pinces)",
-                lastObservation: "N/A"
+                lastObservation: "2025-10-15",
+                currentGoal: "Améliorer la coordination fine (lacets, boutons, pinces)."
             }
         };
-        
-        setLogLevel('Debug'); // Log level for debugging Firestore
 
-        // --- DATA STRUCTURE FOR ACTIVITIES (inchangée) ---
+        // Mock Activity Data
         const activitiesData = [
-            { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
-            { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
-            { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
-            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication. Ce texte est volontairement plus long pour tester l'alignement des boutons.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
-            { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
-            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
+            { id: 1, title: "La Tour des Émotions", category: "Sociale", description: "Construire une tour et associer chaque couleur à une émotion (joie, colère, tristesse)." },
+            { id: 2, title: "Labyrinthe à Doigts", category: "Motricité", description: "Suivre un parcours de labyrinthe dessiné avec les doigts pour renforcer le contrôle moteur fin." },
+            { id: 3, title: "Chasse aux Formes", category: "Cognitive", description: "Trouver des objets dans la maison correspondant à des formes géométriques simples (cercle, carré, triangle)." },
+            { id: 4, title: "Je m'habille seul", category: "Autonomie", description: "Pratiquer l'habillage en autonomie, en se concentrant sur un vêtement spécifique par jour (chaussettes, manteau)." },
+            { id: 5, title: "Peinture Naturelle", category: "Créative", description: "Créer des pigments à partir d'éléments naturels (betterave, curcuma) et peindre avec les doigts ou des éponges." },
+            { id: 6, title: "Le Défi du Bruit", category: "Cognitive", description: "Identifier des objets uniquement par le son qu'ils produisent (clochette, papier froissé, eau qui coule)." },
         ];
 
-        // --- SVG DEFINITIONS (Mise à jour avec le logo Cœur) ---
-        const heartLogoSVG = (classes = 'w-10 h-10 mr-4 text-indigo-500') => `
+
+        // ==========================================================
+        // === UTILS & SVGS ===
+        // ==========================================================
+
+        const heartLogoSVG = (classes = 'w-6 h-6') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A4 4 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A4 4 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
             </svg>
         `;
-        const xIconSVG = (classes = 'w-5 h-5') => `
+        const userIconSVG = (classes = 'w-6 h-6') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M18 6L6 18"></path>
-                <path d="M6 6L18 18"></path>
-            </svg>
-        `;
-        const userIconSVG = (classes = 'w-5 h-5') => `
-             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
             </svg>
         `;
-        const targetIconSVG = (classes = 'text-indigo-500') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 ml-1 ${classes}">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="6"></circle>
-                <circle cx="12" cy="12" r="2"></circle>
+        const xIconSVG = (classes = 'w-6 h-6') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
             </svg>
         `;
-        
-        // --- UTILITY FUNCTIONS (Notification, Profile Modal - Légèrement Modifiées) ---
+        const checkIconSVG = (classes = 'w-5 h-5') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+        `;
+        const tagIconSVG = (classes = 'w-4 h-4') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M12 2H2v10l10 10 10-10Z"></path>
+                <path d="M7 7h.01"></path>
+            </svg>
+        `;
 
-        function showNotification(message, type = 'success') {
+        function showNotification(message, type) {
             const box = document.getElementById('notification-box');
-            const iconContainer = document.getElementById('notification-icon');
-            const messageElement = document.getElementById('notification-message');
-            
-            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show', 'border-green-500', 'border-red-500', 'border-blue-500', 'bg-indigo-100', 'border-indigo-500');
-            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800', 'text-indigo-800');
-            iconContainer.innerHTML = '';
-            
-            let bgColor, textColor, iconHtml, borderColor;
+            const icon = document.getElementById('notification-icon');
+            const msg = document.getElementById('notification-message');
 
-            // Déterminer les couleurs et icônes
+            // Clear previous classes
+            box.className = 'rounded-lg border-l-4 p-4 shadow-xl flex items-center';
+            icon.innerHTML = '';
+
+            let bgColor, borderColor, textColor, svg;
+
             switch (type) {
-                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; borderColor = 'border-green-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'; break;
-                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-800'; borderColor = 'border-red-500'; iconHtml = xIconSVG('w-5 h-5'); break;
-                case 'loading': bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; borderColor = 'border-blue-500'; iconHtml = '<div class="loader"></div>'; break;
-                case 'info': bgColor = 'bg-indigo-100'; textColor = 'text-indigo-800'; borderColor = 'border-indigo-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'; break;
-                default: bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; borderColor = 'border-gray-500'; iconHtml = '';
+                case 'success':
+                    bgColor = 'bg-green-50'; borderColor = 'border-green-500'; textColor = 'text-green-800';
+                    svg = checkIconSVG('w-5 h-5 text-green-500');
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-50'; borderColor = 'border-red-500'; textColor = 'text-red-800';
+                    svg = xIconSVG('w-5 h-5 text-red-500');
+                    break;
+                case 'loading':
+                    bgColor = 'bg-yellow-50'; borderColor = 'border-yellow-500'; textColor = 'text-yellow-800';
+                    svg = '<div class="loader inline-block"></div>';
+                    break;
+                default: // info
+                    bgColor = 'bg-blue-50'; borderColor = 'border-blue-500'; textColor = 'text-blue-800';
+                    svg = '<svg class="w-5 h-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
             }
-            
-            box.classList.add(bgColor, textColor, borderColor);
-            iconContainer.innerHTML = iconHtml;
-            messageElement.textContent = message;
 
-            box.classList.add('show');
-            
-            // Si c'est le message HORS LIGNE, le laisser affiché indéfiniment
-            // Nous utilisons désormais 'info' pour ce mode pour une apparence moins agressive.
-            if (message.indexOf('HORS LIGNE') !== -1) {
-                box.setAttribute('data-permanent', 'true');
-            } else {
-                 box.removeAttribute('data-permanent');
-                 // Masquer après 5s si ce n'est pas un message permanent ou de chargement
-                if (type !== 'loading') {
-                    setTimeout(() => { box.classList.remove('show'); }, 5000);
-                }
+            box.classList.add(bgColor, borderColor, 'show');
+            msg.textContent = message;
+            icon.innerHTML = svg;
+
+            // Hide after 4 seconds (unless loading)
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    box.classList.remove('show');
+                }, 4000);
             }
         }
-        
-        window.toggleProfileModal = (show) => {
+
+        function toggleProfileModal(show) {
             const modal = document.getElementById('profile-modal');
             const backdrop = document.getElementById('modal-backdrop');
+
             if (show) {
-                modal.style.display = 'block';
+                // Pre-fill form (important for the state update simulation)
+                document.getElementById('profile-name').value = state.childProfile.name;
+                document.getElementById('profile-age').value = state.childProfile.age;
+                document.getElementById('profile-goal').value = state.childProfile.currentGoal;
+                
+                modal.classList.add('show');
                 backdrop.style.display = 'block';
             } else {
-                modal.style.display = 'none';
+                // Save changes (simulation only)
+                state.childProfile.name = document.getElementById('profile-name').value;
+                state.childProfile.age = parseInt(document.getElementById('profile-age').value) || state.childProfile.age;
+                state.childProfile.lastObservation = new Date().toISOString().slice(0, 10);
+                state.childProfile.currentGoal = document.getElementById('profile-goal').value;
+
+                modal.classList.remove('show');
                 backdrop.style.display = 'none';
-            }
-        }
-        
-        /**
-         * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
-         * Mode MOCK activé si la configuration est manquante ou invalide.
-         */
-        async function setupFirebase() {
-            if (app) return; // Empêche la réinitialisation
-            
-            let config = null;
-            
-            // 1. Déterminer si nous pouvons nous connecter (Mode EN LIGNE)
-            if (firebaseConfigString && firebaseConfigString.trim().length > 0) {
-                try {
-                    config = JSON.parse(firebaseConfigString);
-                    isMockMode = false;
-                } catch (e) {
-                    // La configuration existe mais est mal formatée (JSON invalide)
-                    console.warn("Configuration Firebase trouvée, mais JSON invalide. Forçage du mode HORS LIGNE.", e);
-                    isMockMode = true;
-                }
-            } else {
-                // Config manquante/vide : c'est l'état attendu, pas une erreur du code.
-                isMockMode = true;
-            }
-
-            // 2. Initialisation et Authentification
-            if (!isMockMode) {
-                // Tenter l'initialisation EN LIGNE
-                try {
-                    app = initializeApp(config);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    
-                    // Tentative d'authentification
-                    try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (authError) {
-                        console.error("Erreur d'authentification:", authError);
-                        showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
-                        isMockMode = true; // Bascule en mode Mock si l'auth échoue
-                    }
-                } catch (error) {
-                    // Échec d'initialisation même avec la config fournie (ex: mauvaise clé)
-                    console.error("Échec critique de initializeApp:", error);
-                    isMockMode = true; // Forcer le mode mock si l'init échoue
+                
+                // Re-render the activities view to show updated profile data
+                if (state.currentView === 'activites') {
+                    renderApp();
                 }
             }
-            
-            // 3. Gestion de l'état MOCK/EN LIGNE et de l'écoute
-            if (isMockMode) {
-                // Utiliser 'info' pour un démarrage harmonieux
-                showNotification("Mode HORS LIGNE ACTIF: Base de données désactivée.", 'info'); 
-                state.observations = [];
-                updateUserIdDisplay(null);
-                renderObservations([]);
-            } else {
-                 // Écouteur d'état d'authentification pour gérer l'UID et les listeners
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        startDataListener();
-                        updateUserIdDisplay(userId); 
-                    } else {
-                        userId = null;
-                        state.observations = [];
-                        updateUserIdDisplay(null); 
-                        if (state.currentView === 'catalogue') renderObservations([]);
-                    }
-                    renderApp(); // Rafraîchir pour mettre à jour l'état de l'utilisateur
-                });
-            }
-
-            renderApp(); // Rafraîchir l'interface initiale
         }
+        window.toggleProfileModal = toggleProfileModal;
 
+
+        // ==========================================================
+        // === FIREBASE FUNCTIONS ===
+        // ==========================================================
+
+        /** Returns the collection reference for observations. */
         function getCollectionRef() {
-            // S'assurer que db est initialisé et qu'on n'est pas en mode factice
-            if (isMockMode || !db || !userId || !app) {
-                console.warn("Tentative d'accès à la base de données alors que le mode HORS LIGNE est actif.");
-                return null;
-            }
-            // Chemin de collection public pour un partage collaboratif
+            if (!db || !appId) return null;
+            // Public collection path: /artifacts/{appId}/public/data/observations
             return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
         }
 
-        function startDataListener() {
-            // Ne pas tenter de se connecter si on est en mode factice
-            if (isMockMode) return; 
-            
-            if (unsubscribe) {
-                unsubscribe();
+        async function setupFirebase() {
+            if (isMockMode) {
+                document.getElementById('user-id-display').textContent = 'ID Utilisateur: HORS LIGNE (Mode Mock)';
+                document.getElementById('status-indicator').textContent = '⚠️ HORS LIGNE';
+                document.getElementById('status-indicator').classList.remove('text-yellow-600');
+                document.getElementById('status-indicator').classList.add('text-red-600');
+                renderObservations([]); // Render empty list for mock mode
+                return;
             }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('Debug'); // Enable Firebase logging
+                
+                // 1. Authenticate
+                await (initialAuthToken ? signInWithCustomToken(auth, initialAuthToken) : signInAnonymously(auth));
+                
+                // 2. Auth State Listener (Crucial for getting userId)
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: ' + userId;
+                        document.getElementById('status-indicator').textContent = '✅ Connecté à Firestore';
+                        document.getElementById('status-indicator').className = 'text-sm font-bold mt-2 text-green-600';
+                        isAuthReady = true;
+                        
+                        // 3. Start real-time listener for observations once authenticated
+                        listenForObservations();
+
+                    } else {
+                        userId = null;
+                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: Non Authentifié';
+                        document.getElementById('status-indicator').textContent = '❌ Déconnecté';
+                        document.getElementById('status-indicator').className = 'text-sm font-bold mt-2 text-red-600';
+                        isAuthReady = true;
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                isMockMode = true; // Fallback to mock mode
+                setupFirebase(); // Re-run setup in mock mode
+            }
+        }
+        
+        /** Listens for real-time updates on the 'observations' collection. */
+        function listenForObservations() {
+            if (!isAuthReady || !db) {
+                console.log("Firestore or Auth not ready. Skipping onSnapshot setup.");
+                return;
+            }
+
             const colRef = getCollectionRef();
             if (!colRef) return;
 
-            const q = query(colRef); 
+            // Simple query (no orderBy to avoid index requirement issues)
+            const q = query(colRef);
 
-            unsubscribe = onSnapshot(q, (snapshot) => {
+            onSnapshot(q, (snapshot) => {
                 const observations = [];
                 snapshot.forEach(doc => {
                     observations.push({ id: doc.id, ...doc.data() });
                 });
                 
-                // Tri par date en JavaScript (le plus récent en premier)
+                // Sort client-side by creation date (newest first)
                 observations.sort((a, b) => {
-                    const dateA = a.createdAt?.seconds || 0;
-                    const dateB = b.createdAt?.seconds || 0;
-                    return dateB - dateA;
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                    return dateB - dateA; // Newest first
                 });
                 
-                state.observations = observations;
-                if (state.currentView === 'catalogue') {
-                    renderObservations(observations);
-                }
-                
-                // Mettre à jour la date de dernière observation dans l'état
-                if (observations.length > 0) {
-                    const latestDate = observations[0].createdAt?.toDate ? 
-                        observations[0].createdAt.toDate().toLocaleDateString('fr-FR') : 
-                        'N/A';
-                    state.childProfile.lastObservation = latestDate;
-                    if (state.currentView === 'activites') {
-                         renderApp();
-                    }
-                }
-
+                renderObservations(observations);
             }, (error) => {
-                console.error("Erreur de l'écouteur Firestore:", error);
-                showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
+                console.error("Erreur onSnapshot:", error);
+                showNotification(`Erreur de synchronisation des observations: ${error.message}`, 'error');
+                // Fallback rendering in case of error
+                renderObservations([]);
             });
         }
-        
-        function updateUserIdDisplay(id) {
-            const displayElement = document.getElementById('user-id-display');
-            const statusIndicator = document.getElementById('status-indicator');
-            
-            if (statusIndicator) {
-                if (isMockMode) {
-                    // Utiliser une couleur subtile (gris ou indigo) pour le mode HORS LIGNE
-                    statusIndicator.className = 'text-sm text-indigo-500 font-bold mt-2';
-                    statusIndicator.textContent = '⚠️ MODE HORS LIGNE (Base de données désactivée)';
-                } else if (id) {
-                    statusIndicator.className = 'text-sm text-green-500 font-bold mt-2';
-                    statusIndicator.textContent = '✅ MODE EN LIGNE (Synchronisé)';
-                } else {
-                    statusIndicator.className = 'text-sm text-gray-500 font-bold mt-2';
-                    statusIndicator.textContent = '⏳ Connexion en cours...';
-                }
-            }
-            
-            if (displayElement) {
-                if (id) {
-                    displayElement.textContent = `ID Utilisateur: ${id}`;
-                } else {
-                    displayElement.textContent = 'ID Utilisateur: Non authentifié';
-                }
+
+
+        // ==========================================================
+        // === VUE 1 : ACTIVITÉS (Card Rendering) ===
+        // ==========================================================
+
+        /**
+         * Helper function to determine Tailwind color classes based on category.
+         */
+        function getCategoryColors(category) {
+            switch (category) {
+                case "Cognitive": return { bg: "bg-pink-500", icon: "text-pink-500", tagBg: "bg-pink-100", tagText: "text-pink-700" };
+                case "Créative": return { bg: "bg-yellow-500", icon: "text-yellow-500", tagBg: "bg-yellow-100", tagText: "text-yellow-700" };
+                case "Sociale": return { bg: "bg-green-500", icon: "text-green-500", tagBg: "bg-green-100", tagText: "text-green-700" };
+                case "Autonomie": return { bg: "bg-blue-500", icon: "text-blue-500", tagBg: "bg-blue-100", tagText: "text-blue-700" };
+                case "Motricité": return { bg: "bg-purple-500", icon: "text-purple-500", tagBg: "bg-purple-100", tagText: "text-purple-700" };
+                default: return { bg: "bg-indigo-500", icon: "text-indigo-500", tagBg: "bg-indigo-100", tagText: "text-indigo-700" };
             }
         }
 
-
-        // --- VIEW RENDERING LOGIC (Modifiée pour l'alignement des boutons) ---
-        function renderApp() {
-            const mainContent = document.getElementById('main-content-container');
-            if (!mainContent) return;
-
-            if (state.currentView === 'activites') {
-                mainContent.innerHTML = renderActivitiesView();
-            } else { // 'catalogue'
-                mainContent.innerHTML = renderCatalogueView();
-                attachCatalogueListeners();
-                updateUserIdDisplay(userId); 
-                renderObservations(state.observations);
-            }
-            updateNavigationView();
-        }
-
-        function updateNavigationView() {
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            const activeLink = document.getElementById(`nav-${state.currentView}`);
-            if (activeLink) activeLink.classList.add('active');
-        }
-
+        /**
+         * Renders a single activity card.
+         */
         function renderActivityCard(activity) {
-            const levelColor = activity.color; 
-            const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
+            const { icon, tagBg, tagText } = getCategoryColors(activity.category);
+            
+            // SVG for a placeholder icon related to activities/play
+            const activityIconSVG = (colorClass) => `
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 ${colorClass}">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+            `;
 
-            // Les classes de survol sont ajoutées ici.
             return `
-                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200 flex flex-col h-full">
-                    <div class="flex justify-between items-center mb-3">
-                        <div class="tag bg-${levelColor}-100 text-${levelColor}-700">${activity.category}</div>
-                        <span class="text-sm font-medium text-gray-500 flex items-center">
-                            Niveau ${activity.level} (${levelTextMap[activity.level]})
-                        </span>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
-                    
-                    <!-- Contenu variable (prend l'espace restant pour pousser le bouton vers le bas) -->
-                    <div class="flex-grow"> 
-                        <!-- Pictogrammes -->
-                        <div class="flex space-x-3 mb-3">
-                            ${activity.icons.map(icon => `<span class="text-3xl hover:scale-110 transition duration-150" title="${activity.category}">${icon}</span>`).join('')}
+                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 flex flex-col h-full">
+                    <div class="p-5 flex-grow">
+                        <div class="flex items-center mb-3">
+                            ${activityIconSVG(icon)}
+                            <div class="${tagBg} ${tagText} tag ml-auto">${activity.category}</div>
                         </div>
-                        
-                        <p class="text-gray-600 text-sm mb-4">${activity.description}</p>
-
-                        <!-- Séquence détaillée -->
-                        <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
-                            <p class="font-semibold text-gray-700 mb-2">Séquence détaillée:</p>
-                            <ol class="list-decimal list-inside text-gray-600 ml-4 space-y-1">
-                                ${activity.sequence.map((step, index) => `<li class="pl-1">${step}</li>`).join('')}
-                            </ol>
-                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
+                        <p class="text-gray-600 text-sm">${activity.description}</p>
                     </div>
-                    <!-- Fin Contenu variable -->
-
-                    <button onclick="showNotification('Activité lancée: ${activity.title}. Enregistrez vos observations dans le catalogue!', 'info')"
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
-                        ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
-                        Commencer l'Activité
-                    </button>
+                    <div class="p-5 border-t border-gray-100">
+                        <button onclick="showNotification('Lancement de l\'activité: ${activity.title}', 'info')"
+                            class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
+                            ${checkIconSVG('w-5 h-5 mr-2')}
+                            Lancer l'Activité
+                        </button>
+                    </div>
                 </div>
             `;
         }
 
-
+        // ==========================================================
+        // === VUE 1 : ACTIVITÉS (Continuation du Code Utilisateur) ===
+        // ==========================================================
+        
         function renderActivitiesView() {
             const profile = state.childProfile;
             const profileData = `Âge : ${profile.age} ans | Dernière Observation : ${profile.lastObservation}`;
@@ -513,7 +483,7 @@
             `;
             // SVG inline pour l'icône Search
             const searchIconSVG = `
-                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-gray-500">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
@@ -625,6 +595,7 @@
             }
 
             listContainer.innerHTML = observations.map(obs => {
+                // Ensure date formatting is safe
                 const dateStr = obs.createdAt?.toDate ? 
                     obs.createdAt.toDate().toLocaleDateString('fr-FR', {
                         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -636,7 +607,7 @@
                         <div class="flex-grow">
                             <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
                             <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
-                            <p class="text-xs text-gray-500 mb-3">Créé le: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'} | ${dateStr}</p>
+                            <p class="text-xs text-gray-500 mb-3">Créé par: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'} | ${dateStr}</p>
                             <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
                         </div>
                         <div>
@@ -692,14 +663,14 @@
 
         async function deleteObservation(docId) {
             if (isMockMode || !userId) {
-                 showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
+                showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
                 return;
             }
-            showNotification("La suppression nécessite une confirmation manuelle de l'administrateur dans une application réelle.", 'info');
-            
+            // Real applications require confirmation, but we use a notification instead of alert/confirm
             showNotification("Suppression de l'observation...", 'loading');
 
             try {
+                // We reference the public path where data is stored
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'observations', docId);
                 await deleteDoc(docRef);
                 showNotification("Observation supprimée avec succès.", 'success');
@@ -734,6 +705,7 @@
                     // Masquer les boutons de suppression pour la capture PDF
                     document.querySelectorAll('.observation-card button').forEach(btn => btn.style.display = 'none');
 
+                    // Capture the entire report area
                     const canvas = await html2canvas(reportArea, { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollY: -window.scrollY });
                     
                     // Rétablir les boutons après la capture
@@ -762,7 +734,7 @@
                         const yOffset = -currentY;
                         
                         pdf.addImage(
-                            imgData, 'JPEG', 0, 10, pdfWidth, imgHeight, null, 'FAST', 0, 
+                            imgData, 'JPEG', 0, 10, pdfWidth, imgHeight, null, 'FAST', 
                             yOffset * (pdfWidth / canvas.width) + 10
                         );
                         
@@ -786,9 +758,49 @@
             }, 50);
         }
         window.generatePdfReport = generatePdfReport;
+
+        // ==========================================================
+        // === VIEW MANAGEMENT & INITIALIZATION ===
+        // ==========================================================
+        
+        /**
+         * Renders the entire application based on the current state.
+         */
+        function renderApp() {
+            const container = document.getElementById('main-content-container');
+            const navActivites = document.getElementById('nav-activites');
+            const navCatalogue = document.getElementById('nav-catalogue');
+
+            if (!container) return;
+
+            // Update Nav Bar active link
+            navActivites.classList.remove('active');
+            navCatalogue.classList.remove('active');
+            
+            let content = '';
+            if (state.currentView === 'activites') {
+                content = renderActivitiesView();
+                navActivites.classList.add('active');
+            } else if (state.currentView === 'catalogue') {
+                content = renderCatalogueView();
+                navCatalogue.classList.add('active');
+            }
+
+            container.innerHTML = content;
+            
+            // Attach listeners after DOM update for the Catalogue View
+            if (state.currentView === 'catalogue') {
+                attachCatalogueListeners();
+            }
+        }
         window.switchView = (viewName) => { 
             state.currentView = viewName; 
             renderApp(); 
+            // Re-render observations manually in case we switch back to catalogue
+            if (viewName === 'catalogue' && db) {
+                // onSnapshot listener handles rendering, but ensures list is updated on switch
+                listenForObservations();
+            }
         };
 
         // --- INITIALIZATION ---
@@ -800,7 +812,7 @@
             // FIX: Inject SVG into static Nav Bar
             const navLogo = document.getElementById('nav-logo-placeholder');
             if (navLogo) {
-                 navLogo.innerHTML = heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current');
+                navLogo.innerHTML = heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current');
             }
 
             // Tente de configurer Firebase en arrière-plan
@@ -844,7 +856,7 @@
                 <input type="text" id="profile-goal" value="${state.childProfile.currentGoal}"
                     class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
-            <button type="button" onclick="showNotification('Profil enregistré (Simulation). Une base de données utilisateur est requise pour la persistance réelle.', 'info'); toggleProfileModal(false);"
+            <button type="button" onclick="toggleProfileModal(false); showNotification('Profil enregistré (Simulation). Actualisation de la vue Activités...', 'success');"
                 class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md">
                 Sauvegarder les Modifications
             </button>

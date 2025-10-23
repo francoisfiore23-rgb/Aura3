@@ -143,7 +143,7 @@
             </svg>
         `;
         
-        // --- UTILITY FUNCTIONS (Notification, Profile Modal - inchangées) ---
+        // --- UTILITY FUNCTIONS (Notification, Profile Modal - Légèrement Modifiées) ---
 
         function showNotification(message, type = 'success') {
             const box = document.getElementById('notification-box');
@@ -156,6 +156,7 @@
             
             let bgColor, textColor, iconHtml, borderColor;
 
+            // Déterminer les couleurs et icônes
             switch (type) {
                 case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; borderColor = 'border-green-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'; break;
                 case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-800'; borderColor = 'border-red-500'; iconHtml = xIconSVG('w-5 h-5'); break;
@@ -170,15 +171,16 @@
 
             box.classList.add('show');
             
-            // Ne pas masquer si c'est un état de chargement/permanent
-            if (type !== 'loading' && message.indexOf('HORS LIGNE') === -1) { 
-                setTimeout(() => { box.classList.remove('show'); }, 5000);
-            }
             // Si c'est le message HORS LIGNE, le laisser affiché indéfiniment
+            // Nous utilisons désormais 'info' pour ce mode pour une apparence moins agressive.
             if (message.indexOf('HORS LIGNE') !== -1) {
                 box.setAttribute('data-permanent', 'true');
             } else {
                  box.removeAttribute('data-permanent');
+                 // Masquer après 5s si ce n'est pas un message permanent ou de chargement
+                if (type !== 'loading') {
+                    setTimeout(() => { box.classList.remove('show'); }, 5000);
+                }
             }
         }
         
@@ -196,7 +198,7 @@
         
         /**
          * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
-         * Le mode factice est activé si la configuration est manquante ou invalide.
+         * Mode MOCK activé si la configuration est manquante ou invalide.
          */
         async function setupFirebase() {
             if (app) return; // Empêche la réinitialisation
@@ -210,11 +212,11 @@
                     isMockMode = false;
                 } catch (e) {
                     // La configuration existe mais est mal formatée (JSON invalide)
-                    console.error("Erreur de parsing de la configuration (chaîne non JSON):", e);
+                    console.warn("Configuration Firebase trouvée, mais JSON invalide. Forçage du mode HORS LIGNE.", e);
                     isMockMode = true;
                 }
             } else {
-                // Config manquante/vide
+                // Config manquante/vide : c'est l'état attendu, pas une erreur du code.
                 isMockMode = true;
             }
 
@@ -236,6 +238,7 @@
                     } catch (authError) {
                         console.error("Erreur d'authentification:", authError);
                         showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
+                        isMockMode = true; // Bascule en mode Mock si l'auth échoue
                     }
                 } catch (error) {
                     // Échec d'initialisation même avec la config fournie (ex: mauvaise clé)
@@ -246,8 +249,9 @@
             
             // 3. Gestion de l'état MOCK/EN LIGNE et de l'écoute
             if (isMockMode) {
-                showNotification("Mode HORS LIGNE ACTIF: Base de données désactivée.", 'error');
-                state.observations = []; // Assurez-vous qu'il n'y a pas d'observations fantômes
+                // Utiliser 'info' pour un démarrage harmonieux
+                showNotification("Mode HORS LIGNE ACTIF: Base de données désactivée.", 'info'); 
+                state.observations = [];
                 updateUserIdDisplay(null);
                 renderObservations([]);
             } else {
@@ -333,8 +337,9 @@
             
             if (statusIndicator) {
                 if (isMockMode) {
-                    statusIndicator.className = 'text-sm text-red-500 font-bold mt-2';
-                    statusIndicator.textContent = '🚨 MODE HORS LIGNE (Base de données désactivée)';
+                    // Utiliser une couleur subtile (gris ou indigo) pour le mode HORS LIGNE
+                    statusIndicator.className = 'text-sm text-indigo-500 font-bold mt-2';
+                    statusIndicator.textContent = '⚠️ MODE HORS LIGNE (Base de données désactivée)';
                 } else if (id) {
                     statusIndicator.className = 'text-sm text-green-500 font-bold mt-2';
                     statusIndicator.textContent = '✅ MODE EN LIGNE (Synchronisé)';
@@ -604,7 +609,7 @@
                         <div class="flex-grow">
                             <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
                             <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
-                            <p class="text-xs text-gray-500 mb-3">Créé le: ${dateStr} (Par: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'})</p>
+                            <p class="text-xs text-gray-500 mb-3">Créé le: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'} | ${dateStr}</p>
                             <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
                         </div>
                         <div>
@@ -623,7 +628,7 @@
             event.preventDefault();
             
             if (isMockMode || !userId) {
-                showNotification("Enregistrement impossible: Base de données désactivée ou utilisateur non authentifié.", 'error');
+                showNotification("Enregistrement impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
                 return;
             }
 
@@ -660,7 +665,7 @@
 
         async function deleteObservation(docId) {
             if (isMockMode || !userId) {
-                 showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'error');
+                 showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
                 return;
             }
             showNotification("La suppression nécessite une confirmation manuelle de l'administrateur dans une application réelle.", 'info');
@@ -679,7 +684,7 @@
         window.deleteObservation = deleteObservation;
 
 
-        // --- PDF GENERATION FUNCTION (inchangée) ---
+        // --- PDF GENERATION FUNCTION (inchangées) ---
         async function generatePdfReport() {
             // Désactiver le bouton et montrer le chargement
             const button = document.getElementById('generatePdfButton');

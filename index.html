@@ -93,7 +93,7 @@
         // Configuration factice robuste pour éviter les crashs si la clé est invalide
         const DUMMY_API_KEY = "AIzaSy_MockKeyForSandboxEnv";
         const MOCK_FIREBASE_CONFIG = { 
-            apiKey: DUMMY_API_KEY, 
+            apiKey: DUMMY_API_KEY, // Clé non valide qui garantit le mode MOCK
             authDomain: 'mock-domain.firebaseapp.com', 
             projectId: 'mock-project-id', 
             storageBucket: 'mock-storage.appspot.com', 
@@ -107,6 +107,7 @@
         let auth = null;
         let userId = null;
         let unsubscribe = null;
+        let isMockMode = false; // Indicateur pour savoir si on est en mode factice
         
         let state = {
             currentView: 'activites',
@@ -198,71 +199,55 @@
         
         /**
          * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
-         * Corrigé pour gérer les configurations manquantes ou les erreurs de clé API.
+         * Le mode factice est le défaut.
          */
         async function setupFirebase() {
             if (app) return; // Empêche la réinitialisation
             
-            let config = null;
-            let useMock = false;
+            let config = MOCK_FIREBASE_CONFIG; // On commence par la configuration factice
+            let useMock = true; // On assume le mode factice par défaut
+            let notificationMessage = null;
 
-            // 1. Déterminer la configuration
+            // 1. Tenter de valider et d'utiliser la configuration réelle
             if (firebaseConfigString && firebaseConfigString.trim().length > 0) {
                 try {
-                    config = JSON.parse(firebaseConfigString);
+                    const parsedConfig = JSON.parse(firebaseConfigString);
+                    // S'assurer que la clé API n'est pas la clé factice par défaut (sécurité)
+                    if (parsedConfig.apiKey && parsedConfig.apiKey.includes(DUMMY_API_KEY)) {
+                        notificationMessage = "ATTENTION: Clé API invalide détectée. Mode HORS LIGNE ACTIF.";
+                    } else {
+                        config = parsedConfig; // Utiliser la configuration réelle
+                        useMock = false; // Désactiver le mode factice
+                    }
                 } catch (e) {
                     console.error("Erreur de parsing de la configuration (chaîne non JSON):", e);
-                    useMock = true;
+                    notificationMessage = "Mode HORS LIGNE ACTIF: Chaîne de configuration Firebase invalide (non-JSON).";
                 }
             } else {
-                // Si la chaîne est manquante ou vide, on force le mode mock.
-                console.warn("Configuration Firebase manquante ou vide. Bascule en mode factice forcée.");
-                useMock = true;
+                // Config manquante/vide
+                notificationMessage = "Mode HORS LIGNE ACTIF: Configuration Firebase manquante. La base de données est indisponible.";
             }
 
-            if (useMock) {
-                config = MOCK_FIREBASE_CONFIG;
-            }
-
-            // 2. Tenter l'initialisation et capturer l'erreur 'api-key-not-valid'
+            // 2. Tenter l'initialisation de l'application
             try {
-                // Tente d'initialiser avec la config déterminée (factice ou réelle)
                 app = initializeApp(config);
                 db = getFirestore(app);
                 auth = getAuth(app);
-            } catch (error) {
-                console.error("Erreur lors de l'initialisation de initializeApp:", error);
-                
-                // Si l'initialisation a échoué (souvent à cause d'une clé API invalide)
-                const isApiKeyError = error.code === 'auth/api-key-not-valid' || error.message.includes('api-key-not-valid');
+                isMockMode = useMock; // Mettre à jour l'indicateur global
 
-                if (isApiKeyError) {
-                    // Si l'initialisation a échoué à cause de la clé API, on force le mode MOCK
-                    useMock = true;
-                    
-                    // Nettoyer l'instance d'application échouée et re-initialiser
-                    if (app) { app.delete().catch(() => {}); app = null; } 
-                    
-                    config = MOCK_FIREBASE_CONFIG;
-                    app = initializeApp(config); // Re-initialisation avec la config MOCK
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                } else {
-                    // Si c'est une autre erreur grave non liée à la clé/config, on alerte et on sort
-                    showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
-                    return;
+                // Afficher la notification si le mode mock est actif
+                if (isMockMode && notificationMessage) {
+                    showNotification(notificationMessage, 'error');
                 }
+                
+            } catch (error) {
+                // Si initializeApp échoue même avec la configuration factice (très rare)
+                console.error("Échec critique de initializeApp:", error);
+                showNotification(`Échec critique de l'initialisation : ${error.message}. Impossible de continuer.`, 'error');
+                return;
             }
             
-            // 3. Si on est en mode mock (suite à config manquante OU clé invalide)
-            if (useMock) {
-                 const message = (firebaseConfigString && firebaseConfigString.trim().length > 0 && !error)
-                    ? "ERREUR CRITIQUE: Clé API invalide. L'application utilise le mode HORS LIGNE (Base de données indisponible)."
-                    : "ERREUR CRITIQUE: Configuration de base de données manquante. L'application utilise le mode HORS LIGNE.";
-                showNotification(message, 'error');
-            }
-            
-            // Logique d'authentification (pour la config fournie OU pour la config factice)
+            // 3. Logique d'authentification (utilisera l'instance 'auth', qu'elle soit mock ou réelle)
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
@@ -270,9 +255,8 @@
                     await signInAnonymously(auth);
                 }
             } catch (authError) {
-                // Si l'authentification échoue (cela arrive si on est en mode MOCK et qu'on essaie quand même un token)
                 console.error("Erreur d'authentification après initialisation:", authError);
-                if (!useMock) { // Afficher l'erreur seulement si on n'est pas déjà en mode mock
+                if (!isMockMode) { // Afficher l'erreur seulement si on n'est pas en mode mock
                     showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
                 }
             }
@@ -306,8 +290,11 @@
 
         function startDataListener() {
             // Ne pas tenter de se connecter si on est en mode factice
-            if (app.options.apiKey === DUMMY_API_KEY) {
+            if (isMockMode) {
                 console.warn("Mode factice actif. L'écouteur Firestore est désactivé.");
+                // Simuler une liste vide dans le catalogue
+                state.observations = []; 
+                if (state.currentView === 'catalogue') renderObservations([]);
                 return;
             }
             
@@ -507,6 +494,7 @@
                     <header class="text-center mb-8">
                         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">Catalogue d'Observations</h1>
                         <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: En cours d\'authentification...'}</p>
+                        ${isMockMode ? '<p class="text-sm text-red-500 font-bold mt-2">🚨 MODE HORS LIGNE (Base de données désactivée)</p>' : ''}
                     </header>
 
                     <!-- Formulaire d'ajout d'observation -->
@@ -519,12 +507,12 @@
                             <div>
                                 <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
                                 <input type="text" id="title" required
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
                             </div>
                             <div>
                                 <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
                                 <select id="category"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
                                     <option value="Nature">Nature</option>
                                     <option value="Environnement">Environnement</option>
                                     <option value="Comportement">Comportement</option>
@@ -535,13 +523,14 @@
                             <div>
                                 <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
                                 <textarea id="description" rows="4" required
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}></textarea>
                             </div>
                             <button type="submit"
-                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
+                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center ${isMockMode ? 'opacity-50 cursor-not-allowed' : ''}" ${isMockMode ? 'disabled' : ''}>
                                 ${plusIconSVG('w-5 h-5 mr-2 text-white')}
                                 Enregistrer l'Observation
                             </button>
+                            ${isMockMode ? '<p class="text-sm text-red-500 mt-2 text-center">Formulaire désactivé : Mode HORS LIGNE actif.</p>' : ''}
                         </form>
                     </div>
 
@@ -593,8 +582,12 @@
             const listContainer = document.getElementById('observations-list');
             if (!listContainer) return;
             
-            if (observations.length === 0) {
-                listContainer.innerHTML = `<p class="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-lg">Aucune observation enregistrée. Commencez à en ajouter une ci-dessus !</p>`;
+            if (isMockMode || observations.length === 0) {
+                 listContainer.innerHTML = `
+                    <p class="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-lg">
+                        ${isMockMode ? 'Base de données désactivée (Mode HORS LIGNE). Aucune observation n\'est affichée.' : 'Aucune observation enregistrée. Commencez à en ajouter une ci-dessus !'}
+                    </p>
+                `;
                 return;
             }
 
@@ -628,8 +621,8 @@
         async function handleSubmit(event) {
             event.preventDefault();
             
-            if (app.options.apiKey === DUMMY_API_KEY) {
-                showNotification("Enregistrement impossible: L'application est en mode hors ligne (Base de données indisponible).", 'error');
+            if (isMockMode) {
+                showNotification("Enregistrement impossible: L'application est en Mode HORS LIGNE.", 'error');
                 return;
             }
             if (!userId) {
@@ -669,8 +662,8 @@
         }
 
         async function deleteObservation(docId) {
-            if (app.options.apiKey === DUMMY_API_KEY) {
-                showNotification("Suppression impossible: L'application est en mode hors ligne (Base de données indisponible).", 'error');
+            if (isMockMode) {
+                showNotification("Suppression impossible: L'application est en Mode HORS LIGNE.", 'error');
                 return;
             }
             if (!userId) return; 

@@ -90,7 +90,7 @@
         const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
-        // SCENARIO 15: Configuration factice robuste pour éviter les crashs si la clé est invalide
+        // Configuration factice robuste pour éviter les crashs si la clé est invalide
         const DUMMY_API_KEY = "AIzaSy_MockKeyForSandboxEnv";
         const MOCK_FIREBASE_CONFIG = { 
             apiKey: DUMMY_API_KEY, 
@@ -198,54 +198,68 @@
         
         /**
          * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
-         * Corrigé pour éviter l'affichage de l'erreur technique 'api-key-not-valid'.
+         * Corrigé pour gérer les configurations manquantes ou les erreurs de clé API.
          */
         async function setupFirebase() {
             if (app) return; // Empêche la réinitialisation
             
             let config = null;
+            let useMock = false;
 
-            try {
-                // Tenter de parser la configuration fournie par l'environnement
-                if (firebaseConfigString) {
+            // 1. Déterminer la configuration
+            if (firebaseConfigString && firebaseConfigString.trim().length > 0) {
+                try {
                     config = JSON.parse(firebaseConfigString);
-                } else {
-                    throw new Error("Config string is missing.");
+                } catch (e) {
+                    console.error("Erreur de parsing de la configuration (chaîne non JSON):", e);
+                    useMock = true;
                 }
-                
-                // 1. Tenter l'initialisation avec la configuration fournie (potentiellement invalide)
+            } else {
+                // Si la chaîne est manquante ou vide, on force le mode mock.
+                console.warn("Configuration Firebase manquante ou vide. Bascule en mode factice forcée.");
+                useMock = true;
+            }
+
+            if (useMock) {
+                config = MOCK_FIREBASE_CONFIG;
+            }
+
+            // 2. Tenter l'initialisation et capturer l'erreur 'api-key-not-valid'
+            try {
+                // Tente d'initialiser avec la config déterminée (factice ou réelle)
                 app = initializeApp(config);
                 db = getFirestore(app);
                 auth = getAuth(app);
-
             } catch (error) {
-                // L'erreur critique se produit souvent ici (par ex. 'auth/api-key-not-valid')
-                console.error("Erreur initiale de connexion Firebase:", error);
+                console.error("Erreur lors de l'initialisation de initializeApp:", error);
                 
-                // 2. Vérification de l'erreur spécifique et bascule vers la configuration MOCK
+                // Si l'initialisation a échoué (souvent à cause d'une clé API invalide)
                 const isApiKeyError = error.code === 'auth/api-key-not-valid' || error.message.includes('api-key-not-valid');
-                
+
                 if (isApiKeyError) {
+                    // Si l'initialisation a échoué à cause de la clé API, on force le mode MOCK
+                    useMock = true;
                     
-                    // Détruire l'instance d'application échouée et configurer le mode factice
+                    // Nettoyer l'instance d'application échouée et re-initialiser
                     if (app) { app.delete().catch(() => {}); app = null; } 
                     
-                    console.warn("Bascule vers la configuration de secours factice après échec de l'API Key.");
-                    
-                    // Re-initialisation SILENCIEUSE avec la configuration MOCK (Scenario 15)
                     config = MOCK_FIREBASE_CONFIG;
-                    app = initializeApp(config);
+                    app = initializeApp(config); // Re-initialisation avec la config MOCK
                     db = getFirestore(app);
                     auth = getAuth(app);
-                    
-                    // Afficher la notification de mode hors ligne, PAS l'erreur technique
-                    showNotification("ERREUR CRITIQUE: Clé API invalide. L'application utilise le mode HORS LIGNE (Base de données indisponible).", 'error');
-                    
                 } else {
-                    // Si c'est une autre erreur, on la logue et on sort
+                    // Si c'est une autre erreur grave non liée à la clé/config, on alerte et on sort
                     showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
                     return;
                 }
+            }
+            
+            // 3. Si on est en mode mock (suite à config manquante OU clé invalide)
+            if (useMock) {
+                 const message = (firebaseConfigString && firebaseConfigString.trim().length > 0 && !error)
+                    ? "ERREUR CRITIQUE: Clé API invalide. L'application utilise le mode HORS LIGNE (Base de données indisponible)."
+                    : "ERREUR CRITIQUE: Configuration de base de données manquante. L'application utilise le mode HORS LIGNE.";
+                showNotification(message, 'error');
             }
             
             // Logique d'authentification (pour la config fournie OU pour la config factice)
@@ -256,12 +270,15 @@
                     await signInAnonymously(auth);
                 }
             } catch (authError) {
-                // L'authentification a échoué (souvent si on est déjà en mode factice, l'authentification anonyme passe)
+                // Si l'authentification échoue (cela arrive si on est en mode MOCK et qu'on essaie quand même un token)
                 console.error("Erreur d'authentification après initialisation:", authError);
+                if (!useMock) { // Afficher l'erreur seulement si on n'est pas déjà en mode mock
+                    showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
+                }
             }
 
 
-            // 3. Écouteur d'état d'authentification pour gérer l'UID et les listeners
+            // 4. Écouteur d'état d'authentification pour gérer l'UID et les listeners
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
@@ -288,10 +305,9 @@
         }
 
         function startDataListener() {
-            // SCENARIO 15: Ne pas tenter de se connecter si on est en mode factice
+            // Ne pas tenter de se connecter si on est en mode factice
             if (app.options.apiKey === DUMMY_API_KEY) {
                 console.warn("Mode factice actif. L'écouteur Firestore est désactivé.");
-                // Ne pas réafficher la notification ici, elle est déjà affichée lors de la bascule.
                 return;
             }
             

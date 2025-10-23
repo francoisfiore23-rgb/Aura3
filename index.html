@@ -52,11 +52,21 @@
 
         /* Styles des cartes d'activité */
         .activity-card {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s;
+            /* Ombre initiale pour le relief */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            /* Transition plus fluide pour les effets de survol */
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+            /* La bordure par défaut reste visible pour le survol */
+            border-color: #e2e8f0;
         }
+        /* Classe de Survol (Hover Effects) pour la Chaleur et le Relief */
         .activity-card:hover {
-            transform: translateY(-4px);
+            /* Relief: augmente la shadow (shadow-xl) et soulève légèrement (translate-y-1) */
+            transform: translateY(-4px); 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08); 
+            /* Chaleur: fond légèrement teinté de blanc cassé et bordure douce */
+            background-color: #fcfcfd; 
+            border-color: #c7d2fe; /* Une teinte plus douce d'indigo (indigo-300) */
         }
         .tag {
             padding: 0.25rem 0.6rem;
@@ -387,8 +397,9 @@
             const levelColor = activity.color; 
             const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
 
+            // Les classes de survol sont ajoutées ici.
             return `
-                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200 flex flex-col h-full"> <!-- Ajouté flex flex-col h-full pour l'alignement -->
+                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200 flex flex-col h-full">
                     <div class="flex justify-between items-center mb-3">
                         <div class="tag bg-${levelColor}-100 text-${levelColor}-700">${activity.category}</div>
                         <span class="text-sm font-medium text-gray-500 flex items-center">

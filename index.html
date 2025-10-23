@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuroreConnect - Application Unifiée</title>
+    <title>ARGILE-B - Application Unifiée</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
@@ -239,8 +239,8 @@
             const iconContainer = document.getElementById('notification-icon');
             const messageElement = document.getElementById('notification-message');
             
-            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show', 'border-green-500', 'border-red-500', 'border-blue-500');
-            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800');
+            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show', 'border-green-500', 'border-red-500', 'border-blue-500', 'bg-indigo-100', 'border-indigo-500');
+            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800', 'text-indigo-800');
             iconContainer.innerHTML = '';
             
             let bgColor, textColor, iconHtml, borderColor;
@@ -397,7 +397,7 @@
         }
 
         // ==========================================================
-        // === VUE 1 : ACTIVITÉS AURORECONNECT (Page Initiale)    ===
+        // === VUE 1 : ACTIVITÉS ARGILE-B (Page Initiale)    ===
         // ==========================================================
         
         function renderActivityCard(activity) {
@@ -448,7 +448,7 @@
             return `
                 <div class="p-4 md:p-8">
                     <header class="text-center mb-6">
-                        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight">AuroreConnect Activités</h1>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight">ARGILE-B Activités</h1>
                         <p class="text-gray-500 mt-2">Catalogue des activités pour le développement personnalisé de l'enfant.</p>
                     </header>
                     
@@ -727,7 +727,7 @@
                         if (pageIndex > 0) { pdf.addPage(); }
                         
                         pdf.setFontSize(16); pdf.setTextColor(55, 65, 81);
-                        pdf.text("Rapport d'Observations AuroreConnect", pdfWidth / 2, 10, { align: 'center' });
+                        pdf.text("Rapport d'Observations ARGILE-B", pdfWidth / 2, 10, { align: 'center' });
                         pdf.setFontSize(10); pdf.setTextColor(107, 114, 128);
                         const date = new Date().toLocaleDateString('fr-FR');
                         pdf.text(`Généré le: ${date}`, pdfWidth / 2, 18, { align: 'center' });
@@ -822,7 +822,7 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
                 <div class="flex-shrink-0">
-                    <span class="text-2xl font-extrabold text-gray-900">Aurore<span class="text-indigo-600">Connect</span></span>
+                    <span class="text-2xl font-extrabold text-gray-900">ARGILE-<span class="text-indigo-600">B</span></span>
                 </div>
                 <!-- Navigation Links -->
                 <div class="flex space-x-6">

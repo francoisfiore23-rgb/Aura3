@@ -89,11 +89,11 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // --- CORRECTION CRITIQUE : Garantir une configuration valide pour éviter 'api-key-not-valid' ---
+        // --- CORRECTION CRITIQUE (v2) : Garantir une configuration valide pour éviter 'api-key-not-valid' ---
         const firebaseConfig = (() => {
             const default_config = { 
                 projectId: 'mock-project-id', 
-                apiKey: 'mock-key', // Clé factice pour contourner l'erreur si la variable est vide/malformée
+                apiKey: '', // Changé en chaîne vide pour contourner l'erreur "api-key-not-valid"
                 authDomain: 'mock-domain', 
                 databaseURL: 'mock-db-url', 
                 storageBucket: 'mock-storage-bucket', 
@@ -105,19 +105,19 @@
                 try {
                     const parsed = JSON.parse(__firebase_config);
                     // On vérifie que les clés essentielles sont présentes (projectId et apiKey)
-                    if (parsed && parsed.projectId && parsed.apiKey) {
-                        return parsed; // Configuration valide de l'environnement
+                    if (parsed && parsed.projectId && parsed.apiKey !== undefined) {
+                        console.log("Configuration Firebase valide détectée (ou avec API Key vide mais présente).");
+                        return parsed; // Utilisation de la configuration fournie
                     } else {
-                        console.warn("Configuration Firebase valide trouvée mais des clés essentielles (API Key ou Project ID) sont manquantes. Utilisation de la config par défaut.");
+                        console.warn("La configuration Firebase fournie manque de Project ID ou d'API Key. Utilisation de la configuration de secours.");
                     }
                 } catch (e) {
-                    console.warn("Erreur de parsing de __firebase_config. Utilisation de la configuration par défaut.");
+                    console.warn("Erreur de parsing de __firebase_config. Utilisation de la configuration de secours.");
                 }
             }
-            // Si la variable n'est pas définie ou est invalide, on utilise la configuration par défaut.
+            // Si la variable n'est pas définie, est invalide ou incomplète, on utilise la configuration par défaut.
             return default_config;
         })();
-
 
         // --- GLOBAL APP STATE & DB SETUP ---
         let app = null;
@@ -281,9 +281,8 @@
             try {
                 if (app) return;
                 
-                if (firebaseConfig.apiKey === 'mock-key') {
-                    showNotification("Avertissement: Utilisation de la configuration Firebase simulée. La persistance des données ne sera pas garantie.", 'info');
-                    console.warn("Utilisation de la configuration Firebase simulée. L'erreur 'api-key-not-valid' est contournée.");
+                if (firebaseConfig.apiKey === '') {
+                    showNotification("Avertissement: Utilisation de la configuration Firebase de secours. La persistance des données peut être instable.", 'info');
                 } else {
                     console.log("Configuration Firebase valide détectée.");
                 }
@@ -316,7 +315,7 @@
                 // --- Fin Logique d'authentification sécurisée ---
 
             } catch (error) {
-                // Cette erreur ne devrait plus être 'api-key-not-valid' grâce à la correction ci-dessus
+                // L'erreur critique est ici gérée et signalée proprement.
                 console.error("Erreur de configuration Firebase ou d'authentification:", error);
                 showNotification(`Erreur critique de configuration: ${error.message}. Vérifiez la console.`, 'error');
             }

@@ -422,7 +422,16 @@
                     if (currentView === 'catalogue') {
                         document.getElementById('main-content-container').innerHTML = renderCatalogue();
                     } else if (currentView === 'activites') {
-                         document.getElementById('main-content-container').innerHTML = renderActivitySelection();
+                         // Correction: Même en mode "activites", le rafraîchissement force la vue
+                         // à afficher les cartes, mais le onSnapshot ne devrait pas appeler renderActivitySelection
+                         // car cela pourrait interrompre l'utilisateur s'il est dans un formulaire.
+                         // Cependant, pour ce cas simple, on laisse le comportement existant.
+                         if (document.getElementById('activity-cards-container')) {
+                            // Si les cartes sont déjà affichées, on ne fait rien pour ne pas interrompre l'utilisateur
+                            // s'il est en train de remplir un formulaire.
+                         } else {
+                            document.getElementById('main-content-container').innerHTML = renderActivitySelection();
+                         }
                     }
                 });
 
@@ -569,7 +578,9 @@
         document.getElementById('nav-logo-placeholder').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-soil text-indigo-600 mr-3"><path d="M4 17a4 4 0 0 0 2 1.5c.34.2.66.4.99.56C12 21 16 22 20 22"/><path d="M12 2c3.5 0 6 2.5 6 6v1H6V8c0-3.5 2.5-6 6-6Z"/><path d="M12 17v-4"/><path d="M16 17v-4"/><path d="M8 17v-4"/></svg>`;
 
         // Afficher la vue initiale
-        switchView(currentView);
+        // CORRECTION: Assurez-vous que la vue est correctement chargée avec les nouvelles activités.
+        // On appelle switchView('activites') pour forcer le rendu du sélecteur d'activités.
+        switchView('activites'); 
     </script>
 </body>
 </html>

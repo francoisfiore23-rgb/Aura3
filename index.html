@@ -89,8 +89,18 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const DUMMY_API_KEY = "AIzaSy_DummyKeyForSandboxEnv"; // Clé factice de secours
         
+        // SCENARIO 15: Configuration factice robuste pour éviter les crashs si la clé est invalide
+        const DUMMY_API_KEY = "AIzaSy_MockKeyForSandboxEnv";
+        const MOCK_FIREBASE_CONFIG = { 
+            apiKey: DUMMY_API_KEY, 
+            authDomain: 'mock-domain.firebaseapp.com', 
+            projectId: 'mock-project-id', 
+            storageBucket: 'mock-storage.appspot.com', 
+            messagingSenderId: 'mock-sender-id', 
+            appId: 'mock-app-id' 
+        };
+
         // --- GLOBAL APP STATE & DB SETUP ---
         let app = null;
         let db = null;
@@ -99,7 +109,7 @@
         let unsubscribe = null;
         
         let state = {
-            currentView: 'activites', // Démarrage par défaut sur les activités
+            currentView: 'activites', // Démarrage par défaut sur les activités (Corrigé)
             observations: [],
             childProfile: {
                 name: "Leo",
@@ -113,76 +123,16 @@
 
         // --- DATA STRUCTURE FOR ACTIVITIES ---
         const activitiesData = [
-            { 
-                id: 1, 
-                title: "Jeu de tri par couleurs", 
-                category: "Cognitive", 
-                color: "pink", 
-                level: 1, 
-                duration: "10min", 
-                description: "Classification pour l'organisation et la reconnaissance des couleurs.",
-                icons: ["🎨", "💡"],
-                sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] 
-            },
-            { 
-                id: 2, 
-                title: "Séquence d'images", 
-                category: "Cognitive", 
-                color: "pink", 
-                level: 2, 
-                duration: "15min", 
-                description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.",
-                icons: ["⏱️", "🧩"],
-                sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] 
-            },
-            { 
-                id: 3, 
-                title: "Construction libre", 
-                category: "Créative", 
-                color: "yellow", 
-                level: 2, 
-                duration: "30min", 
-                description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.",
-                icons: ["🧱", "🚀"],
-                sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] 
-            },
-            { 
-                id: 4, 
-                title: "Jeu de rôle : Le magasin", 
-                category: "Sociale", 
-                color: "green", 
-                level: 3, 
-                duration: "20min", 
-                description: "Simulation d'interactions sociales pour développer l'empathie et la communication.",
-                icons: ["🤝", "🛒"],
-                sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] 
-            },
-            { 
-                id: 5, 
-                title: "S'habiller seul(e)", 
-                category: "Autonomie", 
-                color: "blue", 
-                level: 1, 
-                duration: "15min", 
-                description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.",
-                icons: ["👕", "👍"],
-                sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] 
-            },
-            { 
-                id: 6, 
-                title: "Parcours de motricité", 
-                category: "Motricité", 
-                color: "purple", 
-                level: 2, 
-                duration: "25min", 
-                description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique simple.",
-                icons: ["🏃", "🤸"],
-                sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] 
-            }
+            { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
+            { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
+            { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
+            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
+            { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
+            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
         ];
 
 
-        // --- SVG DEFINITIONS ---
+        // --- SVG DEFINITIONS (Non-modifiées) ---
         const xIconSVG = (classes = 'w-5 h-5') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
                 <path d="M18 6L6 18"></path>
@@ -259,30 +209,28 @@
                     try {
                         config = JSON.parse(firebaseConfigString);
                     } catch (e) {
-                        console.error("Erreur de parsing de __firebase_config:", e);
+                        // SCENARIO 5: Erreur de parsing de __firebase_config
+                        console.error("SCENARIO 5: Erreur de parsing de __firebase_config. Utilisation de la configuration de secours.", e);
                     }
                 }
                 
-                // 2. CORRECTION CRITIQUE : Assurer une clé valide pour initializeApp
-                // On s'assure que la clé API est la clé factice si celle de l'environnement est invalide ou manquante
-                if (!config || !config.apiKey || config.apiKey.startsWith("AIzaSy_")) { 
-                    config = config || {};
-                    config.apiKey = DUMMY_API_KEY;
-                    // Remplir les autres champs si la configuration est vide
-                    if (!config.projectId) {
-                        config = { 
-                            projectId: 'mock-project-id', 
-                            apiKey: DUMMY_API_KEY, 
-                            authDomain: 'mock-domain', 
-                            databaseURL: 'mock-db-url', 
-                            storageBucket: 'mock-storage-bucket', 
-                            messagingSenderId: 'mock-sender-id', 
-                            appId: 'mock-app-id' 
-                        };
-                    }
-                    if (config.apiKey === DUMMY_API_KEY) {
-                       showNotification("Avertissement: Remplacement de la clé API pour contourner l'erreur de configuration.", 'info');
-                    }
+                // 2. SCENARIOS 9, 12, 15: Validation stricte et fallback
+                // Vérifie si la config est absente, si la clé API n'est pas une chaîne valide ou si elle est vide/factice.
+                const isConfigInvalid = !config || 
+                                        typeof config.apiKey !== 'string' || 
+                                        config.apiKey.trim() === "" || 
+                                        config.apiKey.startsWith(DUMMY_API_KEY.substring(0, 10)) || // Vérifie si c'est la clé factice
+                                        !config.projectId; 
+
+                if (isConfigInvalid) { 
+                    // SCENARIO 15: Forcer la configuration factice pour éviter le crash
+                    config = MOCK_FIREBASE_CONFIG;
+                    // SCENARIO 8: Log de l'erreur pour le développeur
+                    console.error("SCENARIO 8/9/15: Clé API Firebase manquante ou non valide. L'application continuera avec la configuration factice. Vérifiez __firebase_config.");
+                    showNotification("ERREUR CRITIQUE DE LA BASE DE DONNÉES. L'application utilise un mode hors ligne (Clé API invalide/manquante).", 'error');
+                } else {
+                    // SCENARIO 8: Log de la clé (partielle) pour rassurer qu'elle a été trouvée
+                    console.log("SCENARIO 8: Firebase API Key found. Attempting initialization.");
                 }
 
                 // Tenter l'initialisation avec la configuration ajustée
@@ -310,33 +258,50 @@
                         updateUserIdDisplay(null); 
                         if (state.currentView === 'catalogue') renderObservations([]);
                     }
-                    // Le rendu initial est fait par window.onload, mais on le laisse ici pour la mise à jour après AUTH
                     renderApp(); 
                 });
 
             } catch (error) {
-                // L'erreur critique est ici gérée et signalée proprement.
+                // Gérer les erreurs subséquentes (ex: échec d'authentification même avec la clé factice)
                 console.error("Erreur de configuration Firebase ou d'authentification:", error);
-                // Afficher l'erreur à l'utilisateur sans bloquer l'affichage principal
                 showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
-                // Afficher un message d'erreur dans le conteneur principal si l'initialisation échoue
+                
                 if (document.getElementById('main-content-container')) {
-                     document.getElementById('main-content-container').innerHTML = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
+                     // Afficher l'erreur dans le conteneur principal si l'initialisation échoue
+                     const errorHtml = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
                         <p class="font-bold mb-2">ERREUR CRITIQUE DE LA BASE DE DONNÉES</p>
                         <p class="text-sm">${error.message}</p>
-                        <p class="text-xs mt-3">Veuillez vérifier la console pour plus de détails sur l'échec de la connexion à Firebase. L'application continue sans accès à la base de données.</p>
+                        <p class="text-xs mt-3">L'application continue sans accès à la base de données. Veuillez vérifier la console (Scenario 8) pour plus de détails sur l'échec de la connexion.</p>
                     </div>`;
+                    
+                    // Si on est sur la vue Catalogue, afficher l'erreur
+                    if (state.currentView === 'catalogue') {
+                        document.getElementById('main-content-container').innerHTML = renderCatalogueView() + errorHtml;
+                    } else {
+                        // Sinon, l'erreur sera affichée via la notification et l'application affichera les activités statiques
+                    }
                 }
             }
         }
 
         function getCollectionRef() {
-            if (!db || !userId) return null;
+            // S'assurer que db est initialisé (même si c'est avec la config factice)
+            if (!db || !userId || !app) {
+                console.warn("Tentative d'accès à la base de données sans initialisation complète.");
+                return null;
+            }
             // Chemin de collection public pour un partage collaboratif
             return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
         }
 
         function startDataListener() {
+            // SCENARIO 15: Ne pas tenter de se connecter si on est en mode factice
+            if (app.options.apiKey === DUMMY_API_KEY) {
+                console.warn("Mode factice actif. L'écouteur Firestore est désactivé.");
+                showNotification("Mode hors ligne: La liste d'observations ne sera pas mise à jour en temps réel.", 'info');
+                return;
+            }
+            
             if (unsubscribe) {
                 unsubscribe();
             }
@@ -369,7 +334,6 @@
                         observations[0].createdAt.toDate().toLocaleDateString('fr-FR') : 
                         'N/A';
                     state.childProfile.lastObservation = latestDate;
-                    // Forcer la mise à jour de la vue si on est sur Activités
                     if (state.currentView === 'activites') {
                          renderApp();
                     }
@@ -393,7 +357,7 @@
         }
 
 
-        // --- VIEW RENDERING LOGIC ---
+        // --- VIEW RENDERING LOGIC (Non-modifiées) ---
         function renderApp() {
             const mainContent = document.getElementById('main-content-container');
             if (!mainContent) return;
@@ -417,10 +381,8 @@
             if (activeLink) activeLink.classList.add('active');
         }
 
-        // ==========================================================
-        // === VUE 1 : ACTIVITÉS ARGILE-B (Page Initiale)    ===
-        // ==========================================================
-        
+        // ... (renderActivityCard, renderActivitiesView, renderCatalogueView, attachCatalogueListeners sont inchangés) ...
+
         function renderActivityCard(activity) {
             const levelColorMap = { 1: 'yellow-500', 2: 'orange-500', 3: 'red-500' };
             const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
@@ -660,6 +622,11 @@
 
         async function handleSubmit(event) {
             event.preventDefault();
+            
+            if (app.options.apiKey === DUMMY_API_KEY) {
+                showNotification("Enregistrement impossible: L'application est en mode hors ligne (Base de données indisponible).", 'error');
+                return;
+            }
             if (!userId) {
                 showNotification("Veuillez attendre l'authentification de l'utilisateur pour enregistrer.", 'error');
                 return;
@@ -697,9 +664,12 @@
         }
 
         async function deleteObservation(docId) {
+            if (app.options.apiKey === DUMMY_API_KEY) {
+                showNotification("Suppression impossible: L'application est en mode hors ligne (Base de données indisponible).", 'error');
+                return;
+            }
             if (!userId) return; 
 
-            // Remplacer window.confirm() par l'affichage d'un message d'information
             showNotification("La suppression nécessite une confirmation manuelle de l'administrateur dans une application réelle.", 'info');
             
             showNotification("Suppression de l'observation...", 'loading');
@@ -716,7 +686,7 @@
         window.deleteObservation = deleteObservation;
 
 
-        // --- PDF GENERATION FUNCTION ---
+        // --- PDF GENERATION FUNCTION (Inchangée) ---
         async function generatePdfReport() {
             const reportArea = document.getElementById('report-content');
             if (!reportArea) {
@@ -761,7 +731,7 @@
                             yOffset * (pdfWidth / canvas.width) + 10
                         );
                         
-                        currentY += pageContentHeight * (canvas.width / pdfWidth); // Ajustement de la hauteur basée sur le ratio
+                        currentY += pageContentHeight * (canvas.width / pdfWidth); 
                         pageIndex++;
                     }
 
@@ -788,7 +758,7 @@
 
         // --- INITIALIZATION ---
         window.onload = () => {
-            // FIX: Démarrer l'affichage IMMEDIATEMENT
+            // Démarrer l'affichage IMMEDIATEMENT (Assure l'affichage initial sur 'activites')
             state.currentView = 'activites'; 
             renderApp(); 
             
@@ -868,7 +838,7 @@
     
     <!-- Main Content Container (Controlled by JavaScript) -->
     <div id="main-content-container" class="max-w-7xl mx-auto">
-        <!-- Le contenu sera chargé ici -->
+        <!-- Le contenu est chargé ici par window.onload -->
         <p class="text-center text-gray-500 py-12">Initialisation de l'interface...</p>
     </div>
 

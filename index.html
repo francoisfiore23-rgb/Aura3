@@ -132,7 +132,12 @@
             { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
         ];
 
-        // --- SVG DEFINITIONS (inchangées) ---
+        // --- SVG DEFINITIONS (Mise à jour avec le logo Cœur) ---
+        const heartLogoSVG = (classes = 'w-10 h-10 mr-4 text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+            </svg>
+        `;
         const xIconSVG = (classes = 'w-5 h-5') => `
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
                 <path d="M18 6L6 18"></path>
@@ -446,7 +451,7 @@
                 <div class="p-4 md:p-8">
                     <header class="text-center mb-6">
                         <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight flex items-center justify-center">
-                            <img src="https://placehold.co/50x50/ffffff/000000?text=%E2%9D%A4%EF%B8%8F" onerror="this.src='https://placehold.co/50x50/ffffff/000000?text=Logo'" alt="Coeur Puzzle" class="w-10 h-10 mr-4"/>
+                            ${heartLogoSVG('w-10 h-10 mr-4 text-indigo-600 fill-current')}
                             ARGILE-B Activités
                         </h1>
                         <p class="text-gray-500 mt-2">Catalogue des activités pour le développement personnalisé de l'enfant.</p>
@@ -518,7 +523,7 @@
                 <div class="max-w-4xl mx-auto p-4 md:p-8">
                     <header class="text-center mb-8">
                         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight flex items-center justify-center">
-                            <img src="https://placehold.co/50x50/ffffff/000000?text=%E2%9D%A4%EF%B8%8F" onerror="this.src='https://placehold.co/50x50/ffffff/000000?text=Logo'" alt="Coeur Puzzle" class="w-10 h-10 mr-4"/>
+                            ${heartLogoSVG('w-10 h-10 mr-4 text-gray-800 fill-current')}
                             Catalogue d'Observations
                         </h1>
                         <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: En cours d\'authentification...'}</p>
@@ -848,8 +853,7 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
                 <div class="flex-shrink-0 flex items-center">
-                    <!-- Image du cœur dans la barre de navigation -->
-                    <img src="https://placehold.co/40x40/ffffff/000000?text=%E2%9D%A4%EF%B8%8F" onerror="this.src='https://placehold.co/40x40/ffffff/000000?text=Logo'" alt="Coeur Puzzle" class="w-8 h-8 mr-2"/>
+                    ${heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current')}
                     <span class="text-2xl font-extrabold text-gray-900">ARGILE-<span class="text-indigo-600">B</span></span>
                 </div>
                 <!-- Navigation Links -->

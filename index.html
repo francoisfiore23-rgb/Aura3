@@ -4,99 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARGILE-B - Application Unifiée</title>
-    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- HTML2Canvas & jsPDF for PDF Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
-            min-height: 100vh;
         }
-        .nav-link.active {
-            border-bottom: 3px solid #4f46e5;
-            color: #4f46e5 !important;
-        }
-        .tag {
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-        /* Notification Box Styling */
-        #notification-box {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-            width: 90%;
-            max-width: 400px;
-            transform: translateX(120%);
-            transition: transform 0.5s ease-in-out;
-            border-radius: 0.5rem;
-        }
-        #notification-box.show {
-            transform: translateX(0);
-        }
-        .notification-success { border-color: #10b981; background-color: #ecfdf5; color: #065f46; }
-        .notification-error { border-color: #ef4444; background-color: #fee2e2; color: #991b1b; }
-        .notification-info { border-color: #3b82f6; background-color: #eff6ff; color: #1e40af; }
-        .notification-loading { border-color: #f59e0b; background-color: #fffbeb; color: #b45309; }
-        
-        /* Modal Styles */
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 100;
-            display: none;
-        }
-        .modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-            z-index: 110;
-            width: 90%;
-            max-width: 500px;
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-        .modal.show {
-            display: block;
-            opacity: 1;
-        }
-        
-        /* Loader for PDF Button */
-        .loader {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
         /* Styles spécifiques au rapport PDF */
         #report-content {
             background-color: #ffffff;
@@ -110,763 +27,16 @@
             border: 1px solid #e2e8f0;
             margin-bottom: 12px;
             padding: 16px;
-            border-radius: 0.5rem;
+            border-radius: 8px;
+        }
+        .nav-link.active {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5;
         }
     </style>
-
-    <script type="module">
-        // ==========================================================
-        // === FIREBASE SETUP & IMPORTS ===
-        // ==========================================================
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, serverTimestamp, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // App State
-        let db = null;
-        let auth = null;
-        let userId = null;
-        let isAuthReady = false;
-        let isMockMode = !firebaseConfig || !initialAuthToken; // Use mock mode if Firebase environment vars are missing
-        
-        const state = {
-            currentView: 'activites', // 'activites' or 'catalogue'
-            childProfile: {
-                name: "Noah",
-                age: 4,
-                lastObservation: "2025-10-15",
-                currentGoal: "Améliorer la coordination fine (lacets, boutons, pinces)."
-            }
-        };
-
-        // Mock Activity Data
-        const activitiesData = [
-            { id: 1, title: "La Tour des Émotions", category: "Sociale", description: "Construire une tour et associer chaque couleur à une émotion (joie, colère, tristesse)." },
-            { id: 2, title: "Labyrinthe à Doigts", category: "Motricité", description: "Suivre un parcours de labyrinthe dessiné avec les doigts pour renforcer le contrôle moteur fin." },
-            { id: 3, title: "Chasse aux Formes", category: "Cognitive", description: "Trouver des objets dans la maison correspondant à des formes géométriques simples (cercle, carré, triangle)." },
-            { id: 4, title: "Je m'habille seul", category: "Autonomie", description: "Pratiquer l'habillage en autonomie, en se concentrant sur un vêtement spécifique par jour (chaussettes, manteau)." },
-            { id: 5, title: "Peinture Naturelle", category: "Créative", description: "Créer des pigments à partir d'éléments naturels (betterave, curcuma) et peindre avec les doigts ou des éponges." },
-            { id: 6, title: "Le Défi du Bruit", category: "Cognitive", description: "Identifier des objets uniquement par le son qu'ils produisent (clochette, papier froissé, eau qui coule)." },
-        ];
-
-
-        // ==========================================================
-        // === UTILS & SVGS ===
-        // ==========================================================
-
-        const heartLogoSVG = (classes = 'w-6 h-6') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A4 4 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A4 4 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-            </svg>
-        `;
-        const userIconSVG = (classes = 'w-6 h-6') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-        `;
-        const xIconSVG = (classes = 'w-6 h-6') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M18 6 6 18"></path>
-                <path d="m6 6 12 12"></path>
-            </svg>
-        `;
-        const checkIconSVG = (classes = 'w-5 h-5') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M20 6 9 17l-5-5"></path>
-            </svg>
-        `;
-        const tagIconSVG = (classes = 'w-4 h-4') => `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                <path d="M12 2H2v10l10 10 10-10Z"></path>
-                <path d="M7 7h.01"></path>
-            </svg>
-        `;
-
-        function showNotification(message, type) {
-            const box = document.getElementById('notification-box');
-            const icon = document.getElementById('notification-icon');
-            const msg = document.getElementById('notification-message');
-
-            // Clear previous classes
-            box.className = 'rounded-lg border-l-4 p-4 shadow-xl flex items-center';
-            icon.innerHTML = '';
-
-            let bgColor, borderColor, textColor, svg;
-
-            switch (type) {
-                case 'success':
-                    bgColor = 'bg-green-50'; borderColor = 'border-green-500'; textColor = 'text-green-800';
-                    svg = checkIconSVG('w-5 h-5 text-green-500');
-                    break;
-                case 'error':
-                    bgColor = 'bg-red-50'; borderColor = 'border-red-500'; textColor = 'text-red-800';
-                    svg = xIconSVG('w-5 h-5 text-red-500');
-                    break;
-                case 'loading':
-                    bgColor = 'bg-yellow-50'; borderColor = 'border-yellow-500'; textColor = 'text-yellow-800';
-                    svg = '<div class="loader inline-block"></div>';
-                    break;
-                default: // info
-                    bgColor = 'bg-blue-50'; borderColor = 'border-blue-500'; textColor = 'text-blue-800';
-                    svg = '<svg class="w-5 h-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-            }
-
-            box.classList.add(bgColor, borderColor, 'show');
-            msg.textContent = message;
-            icon.innerHTML = svg;
-
-            // Hide after 4 seconds (unless loading)
-            if (type !== 'loading') {
-                setTimeout(() => {
-                    box.classList.remove('show');
-                }, 4000);
-            }
-        }
-
-        function toggleProfileModal(show) {
-            const modal = document.getElementById('profile-modal');
-            const backdrop = document.getElementById('modal-backdrop');
-
-            if (show) {
-                // Pre-fill form (important for the state update simulation)
-                document.getElementById('profile-name').value = state.childProfile.name;
-                document.getElementById('profile-age').value = state.childProfile.age;
-                document.getElementById('profile-goal').value = state.childProfile.currentGoal;
-                
-                modal.classList.add('show');
-                backdrop.style.display = 'block';
-            } else {
-                // Save changes (simulation only)
-                state.childProfile.name = document.getElementById('profile-name').value;
-                state.childProfile.age = parseInt(document.getElementById('profile-age').value) || state.childProfile.age;
-                state.childProfile.lastObservation = new Date().toISOString().slice(0, 10);
-                state.childProfile.currentGoal = document.getElementById('profile-goal').value;
-
-                modal.classList.remove('show');
-                backdrop.style.display = 'none';
-                
-                // Re-render the activities view to show updated profile data
-                if (state.currentView === 'activites') {
-                    renderApp();
-                }
-            }
-        }
-        window.toggleProfileModal = toggleProfileModal;
-
-
-        // ==========================================================
-        // === FIREBASE FUNCTIONS ===
-        // ==========================================================
-
-        /** Returns the collection reference for observations. */
-        function getCollectionRef() {
-            if (!db || !appId) return null;
-            // Public collection path: /artifacts/{appId}/public/data/observations
-            return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
-        }
-
-        async function setupFirebase() {
-            if (isMockMode) {
-                document.getElementById('user-id-display').textContent = 'ID Utilisateur: HORS LIGNE (Mode Mock)';
-                document.getElementById('status-indicator').textContent = '⚠️ HORS LIGNE';
-                document.getElementById('status-indicator').classList.remove('text-yellow-600');
-                document.getElementById('status-indicator').classList.add('text-red-600');
-                renderObservations([]); // Render empty list for mock mode
-                return;
-            }
-
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                setLogLevel('Debug'); // Enable Firebase logging
-                
-                // 1. Authenticate
-                await (initialAuthToken ? signInWithCustomToken(auth, initialAuthToken) : signInAnonymously(auth));
-                
-                // 2. Auth State Listener (Crucial for getting userId)
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: ' + userId;
-                        document.getElementById('status-indicator').textContent = '✅ Connecté à Firestore';
-                        document.getElementById('status-indicator').className = 'text-sm font-bold mt-2 text-green-600';
-                        isAuthReady = true;
-                        
-                        // 3. Start real-time listener for observations once authenticated
-                        listenForObservations();
-
-                    } else {
-                        userId = null;
-                        document.getElementById('user-id-display').textContent = 'ID Utilisateur: Non Authentifié';
-                        document.getElementById('status-indicator').textContent = '❌ Déconnecté';
-                        document.getElementById('status-indicator').className = 'text-sm font-bold mt-2 text-red-600';
-                        isAuthReady = true;
-                    }
-                });
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                isMockMode = true; // Fallback to mock mode
-                setupFirebase(); // Re-run setup in mock mode
-            }
-        }
-        
-        /** Listens for real-time updates on the 'observations' collection. */
-        function listenForObservations() {
-            if (!isAuthReady || !db) {
-                console.log("Firestore or Auth not ready. Skipping onSnapshot setup.");
-                return;
-            }
-
-            const colRef = getCollectionRef();
-            if (!colRef) return;
-
-            // Simple query (no orderBy to avoid index requirement issues)
-            const q = query(colRef);
-
-            onSnapshot(q, (snapshot) => {
-                const observations = [];
-                snapshot.forEach(doc => {
-                    observations.push({ id: doc.id, ...doc.data() });
-                });
-                
-                // Sort client-side by creation date (newest first)
-                observations.sort((a, b) => {
-                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-                    return dateB - dateA; // Newest first
-                });
-                
-                renderObservations(observations);
-            }, (error) => {
-                console.error("Erreur onSnapshot:", error);
-                showNotification(`Erreur de synchronisation des observations: ${error.message}`, 'error');
-                // Fallback rendering in case of error
-                renderObservations([]);
-            });
-        }
-
-
-        // ==========================================================
-        // === VUE 1 : ACTIVITÉS (Card Rendering) ===
-        // ==========================================================
-
-        /**
-         * Helper function to determine Tailwind color classes based on category.
-         */
-        function getCategoryColors(category) {
-            switch (category) {
-                case "Cognitive": return { bg: "bg-pink-500", icon: "text-pink-500", tagBg: "bg-pink-100", tagText: "text-pink-700" };
-                case "Créative": return { bg: "bg-yellow-500", icon: "text-yellow-500", tagBg: "bg-yellow-100", tagText: "text-yellow-700" };
-                case "Sociale": return { bg: "bg-green-500", icon: "text-green-500", tagBg: "bg-green-100", tagText: "text-green-700" };
-                case "Autonomie": return { bg: "bg-blue-500", icon: "text-blue-500", tagBg: "bg-blue-100", tagText: "text-blue-700" };
-                case "Motricité": return { bg: "bg-purple-500", icon: "text-purple-500", tagBg: "bg-purple-100", tagText: "text-purple-700" };
-                default: return { bg: "bg-indigo-500", icon: "text-indigo-500", tagBg: "bg-indigo-100", tagText: "text-indigo-700" };
-            }
-        }
-
-        /**
-         * Renders a single activity card.
-         */
-        function renderActivityCard(activity) {
-            const { icon, tagBg, tagText } = getCategoryColors(activity.category);
-            
-            // SVG for a placeholder icon related to activities/play
-            const activityIconSVG = (colorClass) => `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 ${colorClass}">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                </svg>
-            `;
-
-            return `
-                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 flex flex-col h-full">
-                    <div class="p-5 flex-grow">
-                        <div class="flex items-center mb-3">
-                            ${activityIconSVG(icon)}
-                            <div class="${tagBg} ${tagText} tag ml-auto">${activity.category}</div>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
-                        <p class="text-gray-600 text-sm">${activity.description}</p>
-                    </div>
-                    <div class="p-5 border-t border-gray-100">
-                        <button onclick="showNotification('Lancement de l\'activité: ${activity.title}', 'info')"
-                            class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg transition duration-150 shadow-md flex justify-center items-center">
-                            ${checkIconSVG('w-5 h-5 mr-2')}
-                            Lancer l'Activité
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // ==========================================================
-        // === VUE 1 : ACTIVITÉS (Continuation du Code Utilisateur) ===
-        // ==========================================================
-        
-        function renderActivitiesView() {
-            const profile = state.childProfile;
-            const profileData = `Âge : ${profile.age} ans | Dernière Observation : ${profile.lastObservation}`;
-            const currentGoal = profile.currentGoal;
-            
-            return `
-                <div class="p-4 md:p-8">
-                    <header class="text-center mb-6">
-                        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight flex items-center justify-center">
-                            ${heartLogoSVG('w-10 h-10 mr-4 text-indigo-600 fill-current')}
-                            ARGILE-B Activités
-                        </h1>
-                        <p class="text-gray-500 mt-2">Catalogue des activités pour le développement personnalisé de l'enfant.</p>
-                    </header>
-                    
-                    <!-- Section Profil de l'Enfant (Éditable - Simulation) -->
-                    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-indigo-500">
-                        <div class="flex items-center justify-between flex-wrap gap-4">
-                            <div class="flex items-center">
-                                ${userIconSVG('w-8 h-8 text-indigo-500 mr-4')}
-                                <div>
-                                    <h2 class="text-xl font-bold text-gray-800">Profil de ${profile.name}</h2>
-                                    <p class="text-sm text-gray-600">${profileData}</p>
-                                </div>
-                            </div>
-                            <button onclick="toggleProfileModal(true)"
-                                class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
-                                Modifier le Profil
-                            </button>
-                        </div>
-                        <div class="mt-4 text-sm text-gray-700 border-t pt-3">
-                            <p class="font-semibold">Objectif actuel suggéré :</p>
-                            <p class="text-indigo-600 font-medium">${currentGoal}</p>
-                        </div>
-                    </div>
-                    <!-- Fin Section Profil de l'Enfant -->
-                    
-                    <!-- Barre de Catégories (Simplifiée) -->
-                    <div class="flex flex-wrap justify-center gap-2 p-3 bg-white rounded-xl shadow-md mb-8 max-w-4xl mx-auto">
-                        <span class="tag bg-indigo-100 text-indigo-700 hover:scale-105 cursor-pointer transition">Toutes</span>
-                        <span class="tag bg-pink-100 text-pink-700 hover:scale-105 cursor-pointer transition">Cognitive</span>
-                        <span class="tag bg-yellow-100 text-yellow-700 hover:scale-105 cursor-pointer transition">Créative</span>
-                        <span class="tag bg-green-100 text-green-700 hover:scale-105 cursor-pointer transition">Sociale</span>
-                        <span class="tag bg-blue-100 text-blue-700 hover:scale-105 cursor-pointer transition">Autonomie</span>
-                        <span class="tag bg-purple-100 text-purple-700 hover:scale-105 cursor-pointer transition">Motricité</span>
-                    </div>
-
-                    <!-- Grille des Cartes d'Activités -->
-                    <!-- Note: La hauteur des cartes est gérée par flex flex-col h-full dans renderActivityCard -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                        ${activitiesData.map(renderActivityCard).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-
-        // ==========================================================
-        // === VUE 2 : CATALOGUE D'OBSERVATIONS (Base de Données) ===
-        // ==========================================================
-
-        function renderCatalogueView() {
-            // SVG inline pour l'icône Plus
-            const plusIconSVG = (classes = 'w-5 h-5 mr-2 text-indigo-500') => `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5v14"></path>
-                </svg>
-            `;
-            // SVG inline pour l'icône Search
-            const searchIconSVG = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-gray-500">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-            `;
-            
-            return `
-                <div class="max-w-4xl mx-auto p-4 md:p-8">
-                    <header class="text-center mb-8">
-                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight flex items-center justify-center">
-                            ${heartLogoSVG('w-10 h-10 mr-4 text-gray-800 fill-current')}
-                            Catalogue d'Observations
-                        </h1>
-                        <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: En cours d\'authentification...'}</p>
-                        <p id="status-indicator" class="text-sm font-bold mt-2">⏳ Connexion en cours...</p>
-                    </header>
-
-                    <!-- Formulaire d'ajout d'observation -->
-                    <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8 border-t-4 border-green-500">
-                        <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
-                            ${plusIconSVG()}
-                            Ajouter une Nouvelle Observation
-                        </h2>
-                        <form id="observation-form" class="space-y-4">
-                            <div>
-                                <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
-                                <input type="text" id="title" required
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
-                            </div>
-                            <div>
-                                <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
-                                <select id="category"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
-                                    <option value="Nature">Nature</option>
-                                    <option value="Environnement">Environnement</option>
-                                    <option value="Comportement">Comportement</option>
-                                    <option value="Motricite">Motricité</option>
-                                    <option value="Autre">Autre</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
-                                <textarea id="description" rows="4" required
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}></textarea>
-                            </div>
-                            <button type="submit"
-                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center ${isMockMode ? 'opacity-50 cursor-not-allowed' : ''}" ${isMockMode ? 'disabled' : ''}>
-                                ${plusIconSVG('w-5 h-5 mr-2 text-white')}
-                                Enregistrer l'Observation
-                            </button>
-                            ${isMockMode ? '<p class="text-sm text-red-500 mt-2 text-center">Formulaire désactivé : Mode HORS LIGNE actif.</p>' : ''}
-                        </form>
-                    </div>
-
-                    <!-- Liste des observations et bouton de rapport -->
-                    <div class="mb-4 flex justify-between items-center flex-wrap gap-4">
-                        <h2 class="text-2xl font-bold text-gray-700 flex items-center">
-                            ${searchIconSVG}
-                            Liste des Observations
-                        </h2>
-                        <button id="generatePdfButton"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
-                            title="Télécharger un rapport PDF des observations">
-                            <!-- SVG Intégré (Icone de document) pour la stabilité -->
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
-                            Générer Rapport PDF
-                        </button>
-                    </div>
-                    
-                    <!-- Contenu qui sera capturé pour le PDF -->
-                    <div id="report-content">
-                        <div id="observations-list" class="space-y-3">
-                            <!-- Les observations seront insérées ici par JavaScript -->
-                            <p class="text-center text-gray-500 py-8">Chargement des observations...</p>
-                        </div>
-                    </div>
-                    <!-- Fin du contenu à capturer -->
-                </div>
-            `;
-        }
-
-        /**
-         * Re-attaches necessary event listeners for the Catalogue View.
-         */
-        function attachCatalogueListeners() {
-            setTimeout(() => {
-                const form = document.getElementById('observation-form');
-                if (form) form.addEventListener('submit', handleSubmit);
-
-                const pdfButton = document.getElementById('generatePdfButton');
-                if (pdfButton) pdfButton.addEventListener('click', generatePdfReport);
-            }, 0);
-        }
-
-        // --- CATALOGUE DATA MANIPULATION FUNCTIONS (inchangées) ---
-
-        function renderObservations(observations) {
-            if (state.currentView !== 'catalogue') return; 
-            
-            const listContainer = document.getElementById('observations-list');
-            if (!listContainer) return;
-            
-            if (isMockMode || observations.length === 0) {
-                 listContainer.innerHTML = `
-                    <p class="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-lg">
-                        ${isMockMode ? 'Base de données désactivée (Mode HORS LIGNE). Aucune observation n\'est affichée.' : 'Aucune observation enregistrée. Commencez à en ajouter une ci-dessus !'}
-                    </p>
-                `;
-                return;
-            }
-
-            listContainer.innerHTML = observations.map(obs => {
-                // Ensure date formatting is safe
-                const dateStr = obs.createdAt?.toDate ? 
-                    obs.createdAt.toDate().toLocaleDateString('fr-FR', {
-                        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    }) : 
-                    'En cours...';
-
-                return `
-                    <div id="obs-${obs.id}" class="observation-card flex justify-between items-start">
-                        <div class="flex-grow">
-                            <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
-                            <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
-                            <p class="text-xs text-gray-500 mb-3">Créé par: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'} | ${dateStr}</p>
-                            <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
-                        </div>
-                        <div>
-                            <button onclick="window.deleteObservation('${obs.id}')"
-                                class="text-red-500 hover:text-red-700 transition duration-150 p-1 rounded-full hover:bg-red-50" 
-                                title="Supprimer" ${isMockMode ? 'disabled' : ''}>
-                                ${xIconSVG('w-5 h-5')}
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        async function handleSubmit(event) {
-            event.preventDefault();
-            
-            if (isMockMode || !userId) {
-                showNotification("Enregistrement impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
-                return;
-            }
-
-            const title = document.getElementById('title').value.trim();
-            const category = document.getElementById('category').value;
-            const description = document.getElementById('description').value.trim();
-
-            if (!title || !description) {
-                showNotification("Le titre et la description ne peuvent pas être vides.", 'error');
-                return;
-            }
-
-            const colRef = getCollectionRef();
-            if (!colRef) {
-                showNotification("Erreur: Impossible d'accéder à la base de données. ID Utilisateur manquant.", 'error');
-                return;
-            }
-
-            showNotification("Ajout de l'observation...", 'loading');
-
-            try {
-                await addDoc(colRef, {
-                    title, category, description, creatorId: userId, createdAt: serverTimestamp()
-                });
-
-                document.getElementById('observation-form').reset();
-                showNotification("Observation ajoutée avec succès !", 'success');
-
-            } catch (error) {
-                console.error("Erreur lors de l'ajout de l'observation:", error);
-                showNotification(`Échec de l'ajout: ${error.message}`, 'error');
-            }
-        }
-
-        async function deleteObservation(docId) {
-            if (isMockMode || !userId) {
-                showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
-                return;
-            }
-            // Real applications require confirmation, but we use a notification instead of alert/confirm
-            showNotification("Suppression de l'observation...", 'loading');
-
-            try {
-                // We reference the public path where data is stored
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'observations', docId);
-                await deleteDoc(docRef);
-                showNotification("Observation supprimée avec succès.", 'success');
-            } catch (error) {
-                console.error("Erreur lors de la suppression:", error);
-                showNotification(`Échec de la suppression: ${error.message}`, 'error');
-            }
-        }
-        window.deleteObservation = deleteObservation;
-
-
-        // --- PDF GENERATION FUNCTION (inchangées) ---
-        async function generatePdfReport() {
-            // Désactiver le bouton et montrer le chargement
-            const button = document.getElementById('generatePdfButton');
-            button.disabled = true;
-            const originalButtonText = button.innerHTML;
-            button.innerHTML = '<div class="loader inline-block"></div> Génération...';
-
-            showNotification("Génération du rapport PDF en cours...", 'loading');
-            
-            const reportArea = document.getElementById('report-content');
-            if (!reportArea) {
-                showNotification("Erreur : Contenu du rapport introuvable.", 'error');
-                button.innerHTML = originalButtonText;
-                button.disabled = false;
-                return;
-            }
-            
-            setTimeout(async () => {
-                try {
-                    // Masquer les boutons de suppression pour la capture PDF
-                    document.querySelectorAll('.observation-card button').forEach(btn => btn.style.display = 'none');
-
-                    // Capture the entire report area
-                    const canvas = await html2canvas(reportArea, { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollY: -window.scrollY });
-                    
-                    // Rétablir les boutons après la capture
-                    document.querySelectorAll('.observation-card button').forEach(btn => btn.style.display = 'block');
-
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = pdf.internal.pageSize.getHeight();
-                    const imgHeight = canvas.height * pdfWidth / canvas.width;
-                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
-
-                    let currentY = 0;
-                    let pageIndex = 0;
-                    const pageContentHeight = pdfHeight - 25; 
-
-                    while (currentY < imgHeight) {
-                        if (pageIndex > 0) { pdf.addPage(); }
-                        
-                        pdf.setFontSize(16); pdf.setTextColor(55, 65, 81);
-                        pdf.text("Rapport d'Observations ARGILE-B", pdfWidth / 2, 10, { align: 'center' });
-                        pdf.setFontSize(10); pdf.setTextColor(107, 114, 128);
-                        const date = new Date().toLocaleDateString('fr-FR');
-                        pdf.text(`Généré le: ${date}`, pdfWidth / 2, 18, { align: 'center' });
-                        
-                        const yOffset = -currentY;
-                        
-                        pdf.addImage(
-                            imgData, 'JPEG', 0, 10, pdfWidth, imgHeight, null, 'FAST', 
-                            yOffset * (pdfWidth / canvas.width) + 10
-                        );
-                        
-                        currentY += pageContentHeight * (canvas.width / pdfWidth); 
-                        pageIndex++;
-                    }
-
-
-                    const dateTitle = new Date().toISOString().slice(0, 10);
-                    const title = `Rapport_Observations_${dateTitle}`;
-                    pdf.save(title + '.pdf');
-                    showNotification("Rapport PDF généré et téléchargé avec succès !", 'success');
-
-                } catch (error) {
-                    console.error("Erreur lors de la génération du PDF:", error);
-                    showNotification(`Échec de la génération du PDF: ${error.message}`, 'error');
-                } finally {
-                    button.innerHTML = originalButtonText;
-                    button.disabled = false;
-                }
-            }, 50);
-        }
-        window.generatePdfReport = generatePdfReport;
-
-        // ==========================================================
-        // === VIEW MANAGEMENT & INITIALIZATION ===
-        // ==========================================================
-        
-        /**
-         * Renders the entire application based on the current state.
-         */
-        function renderApp() {
-            const container = document.getElementById('main-content-container');
-            const navActivites = document.getElementById('nav-activites');
-            const navCatalogue = document.getElementById('nav-catalogue');
-
-            if (!container) return;
-
-            // Update Nav Bar active link
-            navActivites.classList.remove('active');
-            navCatalogue.classList.remove('active');
-            
-            let content = '';
-            if (state.currentView === 'activites') {
-                content = renderActivitiesView();
-                navActivites.classList.add('active');
-            } else if (state.currentView === 'catalogue') {
-                content = renderCatalogueView();
-                navCatalogue.classList.add('active');
-            }
-
-            container.innerHTML = content;
-            
-            // Attach listeners after DOM update for the Catalogue View
-            if (state.currentView === 'catalogue') {
-                attachCatalogueListeners();
-            }
-        }
-        window.switchView = (viewName) => { 
-            state.currentView = viewName; 
-            renderApp(); 
-            // Re-render observations manually in case we switch back to catalogue
-            if (viewName === 'catalogue' && db) {
-                // onSnapshot listener handles rendering, but ensures list is updated on switch
-                listenForObservations();
-            }
-        };
-
-        // --- INITIALIZATION ---
-        window.onload = () => {
-            // Démarrer l'affichage IMMEDIATEMENT
-            state.currentView = 'activites'; 
-            renderApp(); 
-            
-            // FIX: Inject SVG into static Nav Bar
-            const navLogo = document.getElementById('nav-logo-placeholder');
-            if (navLogo) {
-                navLogo.innerHTML = heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current');
-            }
-
-            // Tente de configurer Firebase en arrière-plan
-            setupFirebase();
-        };
-    </script>
 </head>
-
-<body class="p-0">
-    
-    <!-- Notification Box -->
-    <div id="notification-box" role="alert" class="rounded-lg border-l-4 p-4 shadow-xl flex items-center">
-        <div id="notification-icon" class="flex-shrink-0 mr-3"></div>
-        <div class="flex-grow">
-            <p id="notification-message" class="text-sm font-medium"></p>
-        </div>
-    </div>
-
-    <!-- Modale de simulation de l'édition du Profil de l'enfant -->
-    <div id="modal-backdrop" class="modal-backdrop" onclick="toggleProfileModal(false)"></div>
-    <div id="profile-modal" class="modal">
-        <div class="flex justify-between items-center pb-3 border-b border-gray-200">
-            <h3 class="text-xl font-bold text-indigo-600">Modification du Profil de l'Enfant</h3>
-            <button onclick="toggleProfileModal(false)" class="text-gray-400 hover:text-gray-600">
-                ${xIconSVG('w-6 h-6')}
-            </button>
-        </div>
-        <form class="py-4 space-y-4">
-            <div>
-                <label for="profile-name" class="block text-sm font-medium text-gray-700">Nom de l'enfant</label>
-                <input type="text" id="profile-name" value="${state.childProfile.name}"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label for="profile-age" class="block text-sm font-medium text-gray-700">Âge (ans)</label>
-                <input type="number" id="profile-age" value="${state.childProfile.age}"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label for="profile-goal" class="block text-sm font-medium text-gray-700">Objectif principal actuel</label>
-                <input type="text" id="profile-goal" value="${state.childProfile.currentGoal}"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <button type="button" onclick="toggleProfileModal(false); showNotification('Profil enregistré (Simulation). Actualisation de la vue Activités...', 'success');"
-                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md">
-                Sauvegarder les Modifications
-            </button>
-        </form>
-        <p class="text-xs text-gray-500 mt-3 border-t pt-2">Note: Dans une application réelle, ces données seraient stockées de manière privée sur la base de données Firestore liée à votre utilisateur.</p>
-    </div>
-
-
-    <!-- Navigation Bar -->
-    <nav class="bg-white shadow-md sticky top-0 z-50">
+<body class="min-h-screen">
+    <nav class="bg-white shadow sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
@@ -878,7 +48,7 @@
                 <!-- Navigation Links -->
                 <div class="flex space-x-6">
                     <a href="#" id="nav-activites" onclick="switchView('activites')"
-                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150 active">
                         Activités
                     </a>
                     <a href="#" id="nav-catalogue" onclick="switchView('catalogue')"
@@ -886,14 +56,150 @@
                         Catalogue d'Observations
                     </a>
                 </div>
+                <!-- User ID Display - ÉLÉMENT AJOUTÉ POUR FIXER L'ERREUR -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-700 hidden sm:inline">Utilisateur ID:</span>
+                    <span id="user-id-display" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">Chargement...</span>
+                </div>
             </div>
         </div>
     </nav>
-    
-    <!-- Main Content Container (Controlled by JavaScript) -->
-    <div id="main-content-container" class="max-w-7xl mx-auto">
-        <p class="text-center text-gray-500 py-12">Initialisation de l'interface...</p>
-    </div>
 
+    <!-- Main Content Container (Controlled by JavaScript) -->
+    <div id="main-content-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Contenu de la vue 'activites' (par défaut) -->
+        <div id="view-activites" class="view-content">
+            <h1 class="text-3xl font-bold text-gray-900 mb-6">Activités et Rapport</h1>
+            <div id="report-content" class="min-h-[500px]">
+                <p class="text-gray-500">Le contenu des activités sera affiché ici.</p>
+            </div>
+        </div>
+
+        <!-- Contenu de la vue 'catalogue' -->
+        <div id="view-catalogue" class="view-content hidden">
+            <h1 class="text-3xl font-bold text-gray-900 mb-6">Catalogue d'Observations</h1>
+            <div id="observations-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="observation-card">Observation 1</div>
+                <div class="observation-card">Observation 2</div>
+                <div class="observation-card">Observation 3</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Script Module pour Firebase et Logique de l'Application -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variables globales MANDATOIRES pour Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Note: La configuration Firebase est supposée être un objet JSON valide
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        /**
+         * Fonction pour initialiser Firebase et gérer l'authentification.
+         */
+        async function initializeFirebase() {
+            if (!firebaseConfig) {
+                console.error("Erreur: La configuration Firebase est manquante.");
+                return;
+            }
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Écoute des changements d'état d'authentification
+                onAuthStateChanged(auth, async (user) => {
+                    // Cible de l'affichage de l'ID utilisateur
+                    const userIdDisplay = document.getElementById('user-id-display');
+
+                    if (user) {
+                        userId = user.uid;
+                        // Correction: Vérification si l'élément existe avant de modifier textContent
+                        if (userIdDisplay) {
+                            userIdDisplay.textContent = user.uid;
+                        }
+                        console.log("Utilisateur authentifié avec l'ID:", userId);
+
+                        // Mettre ici la logique de chargement des données Firestore après authentification
+                        // Exemple: loadObservations(userId);
+
+                    } else {
+                        userId = null;
+                         // Correction: Vérification si l'élément existe avant de modifier textContent
+                        if (userIdDisplay) {
+                            userIdDisplay.textContent = 'Non connecté';
+                        }
+                        console.log("Utilisateur déconnecté.");
+                    }
+                    isAuthReady = true;
+                });
+
+                // Tentative d'authentification
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    // Fallback vers l'authentification anonyme si le token n'est pas fourni
+                    await signInAnonymously(auth);
+                }
+
+            } catch (error) {
+                console.error("Erreur d'initialisation ou d'authentification Firebase:", error);
+                const userIdDisplay = document.getElementById('user-id-display');
+                if (userIdDisplay) {
+                    userIdDisplay.textContent = 'Erreur Auth';
+                }
+            }
+        }
+
+        /**
+         * Fonction pour changer de vue (Activités/Catalogue) et mettre à jour l'état actif.
+         * @param {string} viewId - L'ID de la vue à afficher ('activites' ou 'catalogue').
+         */
+        window.switchView = function(viewId) {
+            document.querySelectorAll('.view-content').forEach(view => {
+                view.classList.add('hidden');
+            });
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+            }
+
+            // Mettre à jour les liens de navigation actifs
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const navLink = document.getElementById(`nav-${viewId}`);
+            if (navLink) {
+                 navLink.classList.add('active');
+            }
+        };
+
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', () => {
+             // Initialisation de Firebase après le chargement du DOM
+             initializeFirebase();
+
+             // Initialisation du logo SVG (simple placeholder)
+             const logoPlaceholder = document.getElementById('nav-logo-placeholder');
+             if (logoPlaceholder) {
+                 logoPlaceholder.innerHTML = `
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H4a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 011 1v1a2 2 0 104 0V4z" />
+                     </svg>
+                 `;
+             }
+        });
+    </script>
 </body>
 </html>

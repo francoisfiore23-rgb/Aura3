@@ -89,10 +89,8 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const DUMMY_API_KEY = "AIzaSy_DummyKeyForSandboxEnv"; // Clé factice de secours
         
-        // Clé factice pour satisfaire la validation de l'SDK Firebase si la vraie clé est manquante ou invalide
-        const DUMMY_API_KEY = "AIzaSy_DummyKeyForSandboxEnv"; 
-
         // --- GLOBAL APP STATE & DB SETUP ---
         let app = null;
         let db = null;
@@ -101,13 +99,13 @@
         let unsubscribe = null;
         
         let state = {
-            currentView: 'activites', 
+            currentView: 'activites', // Démarrage par défaut sur les activités
             observations: [],
             childProfile: {
                 name: "Leo",
                 age: 4,
                 currentGoal: "Motricité Fine (pinces)",
-                lastObservation: "22/10/2025"
+                lastObservation: "N/A"
             }
         };
         
@@ -265,21 +263,29 @@
                     }
                 }
                 
-                // 2. Si la config n'est pas valide ou si la clé API est manquante, utiliser une config de secours
-                if (!config || !config.apiKey) {
-                    config = { 
-                        projectId: 'mock-project-id', 
-                        apiKey: DUMMY_API_KEY, // Injecter la clé factice si manquante
-                        authDomain: 'mock-domain', 
-                        databaseURL: 'mock-db-url', 
-                        storageBucket: 'mock-storage-bucket', 
-                        messagingSenderId: 'mock-sender-id', 
-                        appId: 'mock-app-id' 
-                    };
-                    showNotification("Avertissement: Utilisation de la configuration Firebase de secours.", 'info');
+                // 2. CORRECTION CRITIQUE : Assurer une clé valide pour initializeApp
+                // On s'assure que la clé API est la clé factice si celle de l'environnement est invalide ou manquante
+                if (!config || !config.apiKey || config.apiKey.startsWith("AIzaSy_")) { 
+                    config = config || {};
+                    config.apiKey = DUMMY_API_KEY;
+                    // Remplir les autres champs si la configuration est vide
+                    if (!config.projectId) {
+                        config = { 
+                            projectId: 'mock-project-id', 
+                            apiKey: DUMMY_API_KEY, 
+                            authDomain: 'mock-domain', 
+                            databaseURL: 'mock-db-url', 
+                            storageBucket: 'mock-storage-bucket', 
+                            messagingSenderId: 'mock-sender-id', 
+                            appId: 'mock-app-id' 
+                        };
+                    }
+                    if (config.apiKey === DUMMY_API_KEY) {
+                       showNotification("Avertissement: Remplacement de la clé API pour contourner l'erreur de configuration.", 'info');
+                    }
                 }
 
-
+                // Tenter l'initialisation avec la configuration ajustée
                 app = initializeApp(config);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -304,20 +310,23 @@
                         updateUserIdDisplay(null); 
                         if (state.currentView === 'catalogue') renderObservations([]);
                     }
-                    renderApp(); // Rendu initial après l'auth
+                    // Le rendu initial est fait par window.onload, mais on le laisse ici pour la mise à jour après AUTH
+                    renderApp(); 
                 });
 
             } catch (error) {
                 // L'erreur critique est ici gérée et signalée proprement.
                 console.error("Erreur de configuration Firebase ou d'authentification:", error);
-                // Afficher l'erreur à l'utilisateur
-                showNotification(`Erreur critique Firebase: ${error.message}. Vérifiez la console.`, 'error');
-                // S'assurer que le contenu principal est vide ou affiche un message d'erreur
-                document.getElementById('main-content-container').innerHTML = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
-                    <p class="font-bold mb-2">ERREUR CRITIQUE</p>
-                    <p class="text-sm">${error.message}</p>
-                    <p class="text-xs mt-3">Veuillez vérifier la console pour plus de détails sur l'échec de la connexion à Firebase.</p>
-                </div>`;
+                // Afficher l'erreur à l'utilisateur sans bloquer l'affichage principal
+                showNotification(`Erreur critique Firebase: ${error.message}. Base de données indisponible.`, 'error');
+                // Afficher un message d'erreur dans le conteneur principal si l'initialisation échoue
+                if (document.getElementById('main-content-container')) {
+                     document.getElementById('main-content-container').innerHTML = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-md max-w-lg mx-auto mt-12">
+                        <p class="font-bold mb-2">ERREUR CRITIQUE DE LA BASE DE DONNÉES</p>
+                        <p class="text-sm">${error.message}</p>
+                        <p class="text-xs mt-3">Veuillez vérifier la console pour plus de détails sur l'échec de la connexion à Firebase. L'application continue sans accès à la base de données.</p>
+                    </div>`;
+                }
             }
         }
 
@@ -530,7 +539,7 @@
                 <div class="max-w-4xl mx-auto p-4 md:p-8">
                     <header class="text-center mb-8">
                         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">Catalogue d'Observations</h1>
-                        <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: Non authentifié'}</p>
+                        <p id="user-id-display" class="text-xs text-gray-500 mt-1">${userId ? 'ID Utilisateur: ' + userId : 'ID Utilisateur: En cours d\'authentification...'}</p>
                     </header>
 
                     <!-- Formulaire d'ajout d'observation -->
@@ -634,7 +643,7 @@
                         <div class="flex-grow">
                             <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
                             <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
-                            <p class="text-xs text-gray-500 mb-3">Créé le: ${dateStr} (Par: ${obs.creatorId.substring(0, 8)}...)</p>
+                            <p class="text-xs text-gray-500 mb-3">Créé le: ${dateStr} (Par: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'})</p>
                             <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
                         </div>
                         <div>
@@ -779,8 +788,12 @@
 
         // --- INITIALIZATION ---
         window.onload = () => {
+            // FIX: Démarrer l'affichage IMMEDIATEMENT
+            state.currentView = 'activites'; 
+            renderApp(); 
+            
+            // Tente de configurer Firebase en arrière-plan
             setupFirebase();
-            // Le rendu initial se fait après l'authentification dans onAuthStateChanged
         };
     </script>
 </head>
@@ -856,7 +869,7 @@
     <!-- Main Content Container (Controlled by JavaScript) -->
     <div id="main-content-container" class="max-w-7xl mx-auto">
         <!-- Le contenu sera chargé ici -->
-        <p class="text-center text-gray-500 py-12">Initialisation de l'application...</p>
+        <p class="text-center text-gray-500 py-12">Initialisation de l'interface...</p>
     </div>
 
 </body>

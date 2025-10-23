@@ -135,22 +135,8 @@
             showCustomModal('Erreur Système', 'Impossible de se connecter au service de données. Veuillez vérifier votre connexion.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
         }
 
-        // --- STRUCTURE DE DONNÉES (Observations) ---
-        // Exemple de structure d'une Observation
-        /*
-        {
-            id: string,
-            activityId: string,
-            date: Timestamp,
-            observerId: string, // userId
-            description: string,
-            details: {
-                // Propriétés spécifiques à l'activité
-            }
-        }
-        */
-
         // NOUVELLES ACTIVITÉS (DOMAINE D'OBSERVATION)
+        // ** VÉRIFIÉES ET CORRECTES SELON VOTRE DERNIÈRE DEMANDE **
         const ACTIVITIES = [
             { id: 'langage', name: "Le Langage", description: "Observation de la communication verbale, non-verbale et de la compréhension.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10h10"/><path d="M7 14h10"/></svg>`, fields: [
                 { name: 'observed_communication', label: "Description de la communication observée", type: 'textarea', required: true },
@@ -226,7 +212,8 @@
          * @param {string} view - 'activites' ou 'catalogue'
          */
         function switchView(view) {
-            if (view === currentView) return;
+            // Pas de return si la vue est la même pour forcer le rafraîchissement
+            // if (view === currentView) return; 
             currentView = view;
             
             const container = document.getElementById('main-content-container');
@@ -374,9 +361,7 @@
                 // Utiliser la fonction addDoc pour laisser Firestore générer l'ID
                 await addDoc(collection(db, getCollectionPath()), newObservation);
                 
-                // --- CORRECTION: Masquer explicitement l'indicateur après un enregistrement réussi ---
                 updateOfflineIndicator();
-                // -----------------------------------------------------------------------------------
                 
                 console.log("Nouvelle observation enregistrée:", newObservation);
                 
@@ -418,21 +403,20 @@
 
                     console.log(`Catalogue mis à jour. Total: ${allObservations.length} observations.`);
 
-                    // Rafraîchir la vue si nous sommes sur le catalogue
+                    // --- CORRECTION CRITIQUE DU RAFRAÎCHISSEMENT ---
+                    // S'assurer que les cartes d'activité sont correctement rendues
+                    // si l'utilisateur est sur la vue 'activites' et non dans un formulaire.
+                    const container = document.getElementById('main-content-container');
+                    const isInForm = container.querySelector('#observation-form');
+                    
                     if (currentView === 'catalogue') {
-                        document.getElementById('main-content-container').innerHTML = renderCatalogue();
-                    } else if (currentView === 'activites') {
-                         // Correction: Même en mode "activites", le rafraîchissement force la vue
-                         // à afficher les cartes, mais le onSnapshot ne devrait pas appeler renderActivitySelection
-                         // car cela pourrait interrompre l'utilisateur s'il est dans un formulaire.
-                         // Cependant, pour ce cas simple, on laisse le comportement existant.
-                         if (document.getElementById('activity-cards-container')) {
-                            // Si les cartes sont déjà affichées, on ne fait rien pour ne pas interrompre l'utilisateur
-                            // s'il est en train de remplir un formulaire.
-                         } else {
-                            document.getElementById('main-content-container').innerHTML = renderActivitySelection();
-                         }
+                        container.innerHTML = renderCatalogue();
+                    } else if (currentView === 'activites' && !isInForm) {
+                         // Si l'utilisateur est sur la page d'accueil des activités (sans formulaire actif), 
+                         // on force le re-rendu pour garantir l'affichage des activités mises à jour.
+                        container.innerHTML = renderActivitySelection();
                     }
+                    // ----------------------------------------------------
                 });
 
             } catch (error) {
@@ -494,7 +478,7 @@
                     <div class="mt-2 space-y-2 text-sm">
                         ${Object.entries(obs.details).map(([key, value]) => {
                             if (value && value !== '') {
-                                const fieldDef = activity.fields.find(f => f.name === key);
+                                const fieldDef = ACTIVITIES.find(a => a.id === obs.activityId)?.fields.find(f => f.name === key);
                                 const label = fieldDef ? fieldDef.label : key;
                                 return `<p class="border-l-4 border-indigo-200 pl-3">
                                             <span class="font-medium text-gray-700">${label}:</span> 
@@ -569,7 +553,6 @@
         window.addEventListener('offline', updateOfflineIndicator);
 
         // FIX: Initialiser l'état de l'indicateur dès que le script est chargé 
-        // pour s'assurer qu'il est masqué si l'utilisateur est en ligne.
         updateOfflineIndicator();
         
         // --- INITIALISATION FINALE ---
@@ -578,8 +561,6 @@
         document.getElementById('nav-logo-placeholder').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-soil text-indigo-600 mr-3"><path d="M4 17a4 4 0 0 0 2 1.5c.34.2.66.4.99.56C12 21 16 22 20 22"/><path d="M12 2c3.5 0 6 2.5 6 6v1H6V8c0-3.5 2.5-6 6-6Z"/><path d="M12 17v-4"/><path d="M16 17v-4"/><path d="M8 17v-4"/></svg>`;
 
         // Afficher la vue initiale
-        // CORRECTION: Assurez-vous que la vue est correctement chargée avec les nouvelles activités.
-        // On appelle switchView('activites') pour forcer le rendu du sélecteur d'activités.
         switchView('activites'); 
     </script>
 </body>

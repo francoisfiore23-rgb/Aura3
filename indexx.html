@@ -92,482 +92,489 @@
         </div>
     </div>
     
+    <!-- LE SCRIPT PRINCIPAL UTILISANT FIREBASE -->
     <script type="module">
+        // FIX CRITIQUE: Les instructions 'import' DOIVENT être au niveau supérieur du script module.
+        // Les placer à l'intérieur de la fonction auto-exécutable causait l'erreur "SyntaxError: Unexpected token '{'".
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global Firebase variables
-        let app, db, auth;
-        let userId = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-argile-b-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Configuration du Log Level pour Firestore (utile pour le débogage)
-        setLogLevel('Debug');
+        // Le code entier est encapsulé dans une fonction auto-exécutable pour garantir l'isolation et la portée globale des fonctions.
+        (function() {
+            // Global Firebase variables
+            let app, db, auth;
+            let userId = null;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-argile-b-app-id';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Initialisation de Firebase
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            // Authentification
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    console.log("Utilisateur authentifié:", userId);
-                    // Charger les données une fois l'authentification établie
-                    await loadInitialData();
-                } else {
-                    // Tente de se connecter anonymement si le token n'est pas fourni
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
+            // Configuration du Log Level pour Firestore (utile pour le débogage)
+            setLogLevel('Debug');
+
+            // Initialisation de Firebase
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Authentification
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Utilisateur authentifié:", userId);
+                        // Charger les données une fois l'authentification établie
+                        await loadInitialData();
                     } else {
-                        await signInAnonymously(auth);
+                        // Tente de se connecter anonymement si le token n'est pas fourni
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
                     }
+                });
+            } catch (error) {
+                console.error("Erreur lors de l'initialisation de Firebase ou de l'authentification:", error);
+                showCustomModal('Erreur Système', 'Impossible de se connecter au service de données. Veuillez vérifier votre connexion.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
+            }
+
+            // NOUVELLES ACTIVITÉS (DOMAINE D'OBSERVATION)
+            const ACTIVITIES = [
+                { id: 'langage', name: "Le Langage", description: "Observation de la communication verbale, non-verbale et de la compréhension.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10h10"/><path d="M7 14h10"/></svg>`, fields: [
+                    { name: 'observed_communication', label: "Description de la communication observée", type: 'textarea', required: true },
+                    { name: 'context', label: "Contexte de l'échange", type: 'text', required: false },
+                    { name: 'vocabulary_level', label: "Niveau de vocabulaire utilisé", type: 'text', required: false }
+                ]},
+                { id: 'social', name: "L’Intégration Sociale", description: "Évaluation des interactions avec les pairs et les adultes.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13V2"/></svg>`, fields: [
+                    { name: 'interaction_type', label: "Type d'interaction (proche, distant, conflit)", type: 'text', required: true },
+                    { name: 'peer_response', label: "Réponse des pairs", type: 'text', required: false },
+                    { name: 'group_behavior', label: "Comportement en groupe", type: 'textarea', required: false }
+                ]},
+                { id: 'attention', name: "L’Attention", description: "Capacité à se concentrer sur une tâche ou une activité spécifique.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`, fields: [
+                    { name: 'focus_duration', label: "Durée de l'attention (estimation en minutes)", type: 'number', required: true },
+                    { name: 'distractions', label: "Éléments de distraction observés", type: 'text', required: false },
+                    { name: 'task_engagement', label: "Niveau d'engagement dans la tâche", type: 'textarea', required: false }
+                ]},
+                { id: 'motricite', name: "Les Capacités Motrices", description: "Observation de la motricité fine (préhension) et globale (mouvements du corps).", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dumbbell"><path d="m14.4 14.4-2.8-2.8a2 2 0 0 0-2.8 0L6.4 14.4"/><path d="m14.4 9.6 2.8 2.8a2 2 0 0 0 2.8 0L21.6 9.6"/><path d="m9.6 14.4-2.8 2.8a2 2 0 0 0 0 2.8l2.8 2.8"/><path d="m9.6 9.6-2.8-2.8a2 2 0 0 0 0-2.8L9.6 2.4"/></svg>`, fields: [
+                    { name: 'motor_type', label: "Type de motricité observée (Fine ou Globale)", type: 'text', required: true },
+                    { name: 'observed_movement', label: "Description détaillée du mouvement", type: 'textarea', required: true },
+                    { name: 'difficulty_level', label: "Niveau de difficulté perçu", type: 'text', required: false }
+                ]},
+                { id: 'jeux', name: "Les Jeux et Activités", description: "Observation des types de jeux, de la créativité et de la participation.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toy-brick"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M10 8V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/><path d="M6 8V5a2 2 0 0 0-2-2h-2"/></svg>`, fields: [
+                    { name: 'game_type', label: "Type de jeu (individuel, collaboratif, symbolique)", type: 'text', required: true },
+                    { name: 'participation_level', label: "Degré de participation et d'initiative", type: 'text', required: false },
+                    { name: 'notes', label: "Description de l'activité ou du jeu", type: 'textarea', required: false }
+                ]},
+                { id: 'autonomie', name: "L’Autonomie", description: "Observation des capacités d'autonomie (habillage, hygiène, gestion des affaires).", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-platter"><path d="M12 21v-4"/><path d="M22 17a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2h20v-2z"/><path d="M12 13v-2.5a3.5 3.5 0 1 0-7 0V13"/><path d="M12 13v-2.5a3.5 3.5 0 1 1 7 0V13"/></svg>`, fields: [
+                    { name: 'task_completed', label: "Tâche d'autonomie observée", type: 'text', required: true },
+                    { name: 'assistance_needed', label: "Assistance requise (Oui/Non/Partielle)", type: 'text', required: false },
+                    { name: 'self_management', label: "Notes sur la gestion de soi et l'initiative", type: 'textarea', required: false }
+                ]}
+            ];
+
+            // *** DEBUG: VÉRIFICATION DE LA VERSION DU CODE ***
+            // La date est mise à jour pour forcer le cache busting et confirmer que la correction a été chargée.
+            const SCRIPT_VERSION = '2025.10.24-V3'; 
+            console.log(`[ARGILE-B] Version du Script chargée: ${SCRIPT_VERSION}. Total des activités: ${ACTIVITIES.length}.`);
+            // **********************************************
+
+            let allObservations = []; // Stocke toutes les observations chargées
+            let currentView = 'activites'; // Vue par défaut
+
+            // --- GESTION DE L'AFFICHAGE ET DE LA NAVIGATION ---
+
+            /**
+             * Affiche la modale personnalisée.
+             * @param {string} title
+             * @param {string} message
+             * @param {Array<Object>} actions - Ex: [{text: 'Fermer', action: hideCustomModal, style: '...'}]
+             */
+            function showCustomModal(title, message, actions) {
+                const modal = document.getElementById('custom-modal');
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+                const actionsContainer = document.getElementById('modal-actions');
+                actionsContainer.innerHTML = '';
+
+                actions.forEach(action => {
+                    const button = document.createElement('button');
+                    button.textContent = action.text;
+                    button.className = `px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md transition duration-150 ${action.style}`;
+                    button.onclick = () => {
+                        action.action();
+                    };
+                    actionsContainer.appendChild(button);
+                });
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            function hideCustomModal() {
+                const modal = document.getElementById('custom-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+
+            /**
+             * Bascule entre les vues 'activites' et 'catalogue'.
+             * @param {string} view - 'activites' ou 'catalogue'
+             */
+            window.switchView = function(view) {
+                currentView = view;
+                
+                const container = document.getElementById('main-content-container');
+                container.innerHTML = ''; // Effacer le contenu précédent
+
+                // Mettre à jour les liens de navigation
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                document.getElementById(`nav-${view}`).classList.add('active');
+
+                if (view === 'activites') {
+                    container.innerHTML = renderActivitySelection();
+                    // Assurez-vous que le sélecteur d'activité est visible sur mobile
+                    document.getElementById('activity-selection-container')?.classList.remove('hidden');
+                } else if (view === 'catalogue') {
+                    container.innerHTML = renderCatalogue();
+                    document.getElementById('activity-selection-container')?.classList.add('hidden');
                 }
-            });
-        } catch (error) {
-            console.error("Erreur lors de l'initialisation de Firebase ou de l'authentification:", error);
-            showCustomModal('Erreur Système', 'Impossible de se connecter au service de données. Veuillez vérifier votre connexion.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
-        }
-
-        // NOUVELLES ACTIVITÉS (DOMAINE D'OBSERVATION)
-        const ACTIVITIES = [
-            { id: 'langage', name: "Le Langage", description: "Observation de la communication verbale, non-verbale et de la compréhension.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10h10"/><path d="M7 14h10"/></svg>`, fields: [
-                { name: 'observed_communication', label: "Description de la communication observée", type: 'textarea', required: true },
-                { name: 'context', label: "Contexte de l'échange", type: 'text', required: false },
-                { name: 'vocabulary_level', label: "Niveau de vocabulaire utilisé", type: 'text', required: false }
-            ]},
-            { id: 'social', name: "L’Intégration Sociale", description: "Évaluation des interactions avec les pairs et les adultes.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13V2"/></svg>`, fields: [
-                { name: 'interaction_type', label: "Type d'interaction (proche, distant, conflit)", type: 'text', required: true },
-                { name: 'peer_response', label: "Réponse des pairs", type: 'text', required: false },
-                { name: 'group_behavior', label: "Comportement en groupe", type: 'textarea', required: false }
-            ]},
-            { id: 'attention', name: "L’Attention", description: "Capacité à se concentrer sur une tâche ou une activité spécifique.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`, fields: [
-                { name: 'focus_duration', label: "Durée de l'attention (estimation en minutes)", type: 'number', required: true },
-                { name: 'distractions', label: "Éléments de distraction observés", type: 'text', required: false },
-                { name: 'task_engagement', label: "Niveau d'engagement dans la tâche", type: 'textarea', required: false }
-            ]},
-            { id: 'motricite', name: "Les Capacités Motrices", description: "Observation de la motricité fine (préhension) et globale (mouvements du corps).", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dumbbell"><path d="m14.4 14.4-2.8-2.8a2 2 0 0 0-2.8 0L6.4 14.4"/><path d="m14.4 9.6 2.8 2.8a2 2 0 0 0 2.8 0L21.6 9.6"/><path d="m9.6 14.4-2.8 2.8a2 2 0 0 0 0 2.8l2.8 2.8"/><path d="m9.6 9.6-2.8-2.8a2 2 0 0 0 0-2.8L9.6 2.4"/></svg>`, fields: [
-                { name: 'motor_type', label: "Type de motricité observée (Fine ou Globale)", type: 'text', required: true },
-                { name: 'observed_movement', label: "Description détaillée du mouvement", type: 'textarea', required: true },
-                { name: 'difficulty_level', label: "Niveau de difficulté perçu", type: 'text', required: false }
-            ]},
-            { id: 'jeux', name: "Les Jeux et Activités", description: "Observation des types de jeux, de la créativité et de la participation.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toy-brick"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M10 8V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/><path d="M6 8V5a2 2 0 0 0-2-2h-2"/></svg>`, fields: [
-                { name: 'game_type', label: "Type de jeu (individuel, collaboratif, symbolique)", type: 'text', required: true },
-                { name: 'participation_level', label: "Degré de participation et d'initiative", type: 'text', required: false },
-                { name: 'notes', label: "Description de l'activité ou du jeu", type: 'textarea', required: false }
-            ]},
-            { id: 'autonomie', name: "L’Autonomie", description: "Observation des capacités d'autonomie (habillage, hygiène, gestion des affaires).", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-platter"><path d="M12 21v-4"/><path d="M22 17a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2h20v-2z"/><path d="M12 13v-2.5a3.5 3.5 0 1 0-7 0V13"/><path d="M12 13v-2.5a3.5 3.5 0 1 1 7 0V13"/></svg>`, fields: [
-                { name: 'task_completed', label: "Tâche d'autonomie observée", type: 'text', required: true },
-                { name: 'assistance_needed', label: "Assistance requise (Oui/Non/Partielle)", type: 'text', required: false },
-                { name: 'self_management', label: "Notes sur la gestion de soi et l'initiative", type: 'textarea', required: false }
-            ]}
-        ];
-
-        // *** DEBUG: VÉRIFICATION DE LA VERSION DU CODE ***
-        console.log(`[ARGILE-B] Version du Script chargée: 2025.10.24. Total des activités: ${ACTIVITIES.length}.`);
-        // **********************************************
-
-        let allObservations = []; // Stocke toutes les observations chargées
-        let currentView = 'activites'; // Vue par défaut
-
-        // --- GESTION DE L'AFFICHAGE ET DE LA NAVIGATION ---
-
-        /**
-         * Affiche la modale personnalisée.
-         * @param {string} title
-         * @param {string} message
-         * @param {Array<Object>} actions - Ex: [{text: 'Fermer', action: hideCustomModal, style: '...'}]
-         */
-        function showCustomModal(title, message, actions) {
-            const modal = document.getElementById('custom-modal');
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-message').textContent = message;
-            const actionsContainer = document.getElementById('modal-actions');
-            actionsContainer.innerHTML = '';
-
-            actions.forEach(action => {
-                const button = document.createElement('button');
-                button.textContent = action.text;
-                button.className = `px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md transition duration-150 ${action.style}`;
-                button.onclick = () => {
-                    action.action();
-                };
-                actionsContainer.appendChild(button);
-            });
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function hideCustomModal() {
-            const modal = document.getElementById('custom-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        /**
-         * Bascule entre les vues 'activites' et 'catalogue'.
-         * @param {string} view - 'activites' ou 'catalogue'
-         */
-        function switchView(view) {
-            // Pas de return si la vue est la même pour forcer le rafraîchissement
-            // si l'utilisateur change de vue et revient.
-            currentView = view;
-            
-            const container = document.getElementById('main-content-container');
-            container.innerHTML = ''; // Effacer le contenu précédent
-
-            // Mettre à jour les liens de navigation
-            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            document.getElementById(`nav-${view}`).classList.add('active');
-
-            if (view === 'activites') {
-                container.innerHTML = renderActivitySelection();
-                // Assurez-vous que le sélecteur d'activité est visible sur mobile
-                document.getElementById('activity-selection-container')?.classList.remove('hidden');
-            } else if (view === 'catalogue') {
-                container.innerHTML = renderCatalogue();
-                document.getElementById('activity-selection-container')?.classList.add('hidden');
             }
-        }
 
-        // --- RENDERING DES VUES ---
+            // --- RENDERING DES VUES ---
 
-        /** Génère le HTML pour la sélection des activités. */
-        function renderActivitySelection() {
-            return `
-                <div class="p-4 sm:p-6 lg:p-8">
-                    <!-- DEBUG MARKER: AFFICHE LA VERSION DU SCRIPT POUR CONFIRMATION -->
-                    <p class="text-xs text-green-600 mb-4 font-semibold p-2 bg-green-50 rounded-lg border border-green-200">
-                        Script Version: 2025.10.24 (6 Domaines Corrects)
-                    </p>
-                    <!----------------------------------------------------------------->
+            /** Génère le HTML pour la sélection des activités. */
+            function renderActivitySelection() {
+                return `
+                    <div class="p-4 sm:p-6 lg:p-8">
+                        <!-- DEBUG MARKER: AFFICHE LA VERSION DU SCRIPT POUR CONFIRMATION -->
+                        <p class="text-xs text-green-600 mb-4 font-semibold p-2 bg-green-50 rounded-lg border border-green-200">
+                            Script Version: ${SCRIPT_VERSION} (Correction de l'erreur SyntaxError appliquée)
+                        </p>
+                        <!----------------------------------------------------------------->
 
-                    <h1 class="text-3xl font-extrabold text-gray-900 mb-6">Sélectionnez un Domaine d'Observation</h1>
-                    <p class="text-lg text-gray-600 mb-8">Choisissez le domaine de développement que vous souhaitez documenter.</p>
-                    
-                    <div id="activity-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        ${ACTIVITIES.map(activity => `
-                            <div onclick="startObservation('${activity.id}')"
-                                class="activity-card bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 cursor-pointer border border-gray-200">
-                                <div class="text-indigo-600 mb-3">${activity.icon}</div>
-                                <h2 class="text-xl font-bold text-gray-900 mb-2">${activity.name}</h2>
-                                <p class="text-gray-600">${activity.description}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        /** Démarre le formulaire pour une nouvelle observation. */
-        window.startObservation = function(activityId) {
-            if (!userId) {
-                showCustomModal('Authentification Requise', 'Veuillez patienter pendant l\'initialisation de votre session.', [{text: 'OK', action: hideCustomModal, style: 'bg-indigo-500 hover:bg-indigo-600'}]);
-                return;
-            }
-            const activity = ACTIVITIES.find(a => a.id === activityId);
-            if (!activity) return;
-
-            const container = document.getElementById('main-content-container');
-            container.innerHTML = renderObservationForm(activity);
-        };
-
-        /** Génère le HTML pour le formulaire d'observation. */
-        function renderObservationForm(activity) {
-            return `
-                <div class="max-w-xl mx-auto p-4 sm:p-8 bg-white rounded-xl shadow-2xl">
-                    <button onclick="switchView('activites')" class="text-indigo-600 hover:text-indigo-800 flex items-center mb-6 transition duration-150">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left mr-1"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                        Retour aux Domaines
-                    </button>
-                    <h1 class="text-2xl font-extrabold text-gray-900 mb-1">Observation: ${activity.name}</h1>
-                    <p class="text-gray-600 mb-8">${activity.description}</p>
-                    
-                    <form id="observation-form" onsubmit="handleObservationSubmit(event, '${activity.id}')">
+                        <h1 class="text-3xl font-extrabold text-gray-900 mb-6">Sélectionnez un Domaine d'Observation</h1>
+                        <p class="text-lg text-gray-600 mb-8">Choisissez le domaine de développement que vous souhaitez documenter.</p>
                         
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Date et Heure</label>
-                            <input type="datetime-local" id="observation-date" value="${new Date().toISOString().substring(0, 16)}" 
-                                class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" required>
+                        <div id="activity-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${ACTIVITIES.map(activity => `
+                                <div onclick="startObservation('${activity.id}')"
+                                    class="activity-card bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 cursor-pointer border border-gray-200">
+                                    <div class="text-indigo-600 mb-3">${activity.icon}</div>
+                                    <h2 class="text-xl font-bold text-gray-900 mb-2">${activity.name}</h2>
+                                    <p class="text-gray-600">${activity.description}</p>
+                                </div>
+                            `).join('')}
                         </div>
-
-                        ${activity.fields.map(field => `
-                            <div class="mb-4">
-                                <label for="${field.name}" class="block text-sm font-medium text-gray-700 mb-1">${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}</label>
-                                ${field.type === 'textarea' ? 
-                                    `<textarea id="${field.name}" name="${field.name}" rows="3" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" ${field.required ? 'required' : ''}></textarea>` :
-                                    `<input type="${field.type}" id="${field.name}" name="${field.name}" step="${field.type === 'number' ? 'any' : ''}"
-                                        class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" ${field.required ? 'required' : ''}>`
-                                }
-                            </div>
-                        `).join('')}
-
-                        <p class="text-xs text-gray-500 mb-6">Observation par: ${userId ? userId.substring(0, 8) + '...' : 'Chargement...'}</p>
-
-                        <button type="submit" class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold shadow-lg hover:bg-indigo-700 transition duration-150 transform hover:scale-[1.01]">
-                            Enregistrer l'Observation
-                        </button>
-                    </form>
-                </div>
-            `;
-        }
-        
-        // --- GESTION DE LA PERSISTENCE (Firestore) ---
-
-        /** * Construit le chemin de la collection Firestore.
-         * Stocke les données dans /artifacts/{appId}/users/{userId}/observations
-         */
-        function getCollectionPath() {
-            if (!userId) throw new Error("UserID non disponible.");
-            return `artifacts/${appId}/users/${userId}/observations`;
-        }
-
-        /**
-         * Gère la soumission du formulaire d'observation et l'enregistrement dans Firestore.
-         * @param {Event} event
-         * @param {string} activityId
-         */
-        window.handleObservationSubmit = async function(event, activityId) {
-            event.preventDefault();
-            if (!userId) {
-                showCustomModal('Authentification Incomplète', 'Veuillez attendre la connexion avant d\'enregistrer.', [{text: 'OK', action: hideCustomModal, style: 'bg-indigo-500 hover:bg-indigo-600'}]);
-                return;
+                    </div>
+                `;
             }
 
-            const form = event.target;
-            const activity = ACTIVITIES.find(a => a.id === activityId);
-            const dateInput = form.querySelector('#observation-date').value;
-            const observationDate = new Date(dateInput);
-
-            const details = {};
-            activity.fields.forEach(field => {
-                const input = form.querySelector(`#${field.name}`);
-                if (input) {
-                    let value = input.value;
-                    if (field.type === 'number' && value !== '') {
-                        value = parseFloat(value);
-                    }
-                    details[field.name] = value;
+            /** Démarre le formulaire pour une nouvelle observation. */
+            window.startObservation = function(activityId) {
+                if (!userId) {
+                    showCustomModal('Authentification Requise', 'Veuillez patienter pendant l\'initialisation de votre session.', [{text: 'OK', action: hideCustomModal, style: 'bg-indigo-500 hover:bg-indigo-600'}]);
+                    return;
                 }
-            });
+                const activity = ACTIVITIES.find(a => a.id === activityId);
+                if (!activity) return;
 
-            const newObservation = {
-                activityId: activityId,
-                activityName: activity.name,
-                date: observationDate,
-                observerId: userId,
-                details: details,
-                timestamp: serverTimestamp() // Ajout d'un horodatage côté serveur
+                const container = document.getElementById('main-content-container');
+                container.innerHTML = renderObservationForm(activity);
             };
 
-            try {
-                // Utiliser la fonction addDoc pour laisser Firestore générer l'ID
-                await addDoc(collection(db, getCollectionPath()), newObservation);
-                
-                updateOfflineIndicator();
-                
-                console.log("Nouvelle observation enregistrée:", newObservation);
-                
-                showCustomModal('Succès!', 'L\'observation a été enregistrée avec succès.', [
-                    {text: 'Ajouter une autre', action: () => { hideCustomModal(); switchView('activites'); }, style: 'bg-indigo-600 hover:bg-indigo-700'},
-                    {text: 'Voir le catalogue', action: () => { hideCustomModal(); switchView('catalogue'); }, style: 'bg-gray-400 hover:bg-gray-500'}
-                ]);
+            /** Génère le HTML pour le formulaire d'observation. */
+            function renderObservationForm(activity) {
+                return `
+                    <div class="max-w-xl mx-auto p-4 sm:p-8 bg-white rounded-xl shadow-2xl">
+                        <button onclick="switchView('activites')" class="text-indigo-600 hover:text-indigo-800 flex items-center mb-6 transition duration-150">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left mr-1"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            Retour aux Domaines
+                        </button>
+                        <h1 class="text-2xl font-extrabold text-gray-900 mb-1">Observation: ${activity.name}</h1>
+                        <p class="text-gray-600 mb-8">${activity.description}</p>
+                        
+                        <form id="observation-form" onsubmit="handleObservationSubmit(event, '${activity.id}')">
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date et Heure</label>
+                                <input type="datetime-local" id="observation-date" value="${new Date().toISOString().substring(0, 16)}" 
+                                    class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" required>
+                            </div>
 
-            } catch (e) {
-                console.error("Erreur lors de l'ajout du document: ", e);
-                showCustomModal('Erreur d\'Enregistrement', 'Désolé, une erreur est survenue lors de l\'enregistrement de votre observation.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
+                            ${activity.fields.map(field => `
+                                <div class="mb-4">
+                                    <label for="${field.name}" class="block text-sm font-medium text-gray-700 mb-1">${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}</label>
+                                    ${field.type === 'textarea' ? 
+                                        `<textarea id="${field.name}" name="${field.name}" rows="3" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" ${field.required ? 'required' : ''}></textarea>` :
+                                        `<input type="${field.type}" id="${field.name}" name="${field.name}" step="${field.type === 'number' ? 'any' : ''}"
+                                            class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" ${field.required ? 'required' : ''}>`
+                                    }
+                                </div>
+                            `).join('')}
+
+                            <p class="text-xs text-gray-500 mb-6">Observation par: ${userId ? userId.substring(0, 8) + '...' : 'Chargement...'}</p>
+
+                            <button type="submit" class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold shadow-lg hover:bg-indigo-700 transition duration-150 transform hover:scale-[1.01]">
+                                Enregistrer l'Observation
+                            </button>
+                        </form>
+                    </div>
+                `;
             }
-        };
+            
+            // --- GESTION DE LA PERSISTENCE (Firestore) ---
 
-        /**
-         * Charge les données initiales du catalogue et configure l'écoute en temps réel.
-         */
-        async function loadInitialData() {
-            if (!db || !userId) return;
+            /** * Construit le chemin de la collection Firestore.
+             * Stocke les données dans /artifacts/{appId}/users/{userId}/observations
+             */
+            function getCollectionPath() {
+                if (!userId) throw new Error("UserID non disponible.");
+                return `artifacts/${appId}/users/${userId}/observations`;
+            }
 
-            try {
-                const q = query(collection(db, getCollectionPath()));
-                
-                // Écouter les changements en temps réel
-                onSnapshot(q, (snapshot) => {
-                    allObservations = [];
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        allObservations.push({
-                            id: doc.id,
-                            ...data,
-                            // Convertir le timestamp Firestore en objet Date si nécessaire
-                            date: data.date instanceof Date ? data.date : (data.date?.toDate() || null)
-                        });
-                    });
+            /**
+             * Gère la soumission du formulaire d'observation et l'enregistrement dans Firestore.
+             * @param {Event} event
+             * @param {string} activityId
+             */
+            window.handleObservationSubmit = async function(event, activityId) {
+                event.preventDefault();
+                if (!userId) {
+                    showCustomModal('Authentification Incomplète', 'Veuillez attendre la connexion avant d\'enregistrer.', [{text: 'OK', action: hideCustomModal, style: 'bg-indigo-500 hover:bg-indigo-600'}]);
+                    return;
+                }
 
-                    // Trier par date (du plus récent au plus ancien)
-                    allObservations.sort((a, b) => b.date - a.date);
+                const form = event.target;
+                const activity = ACTIVITIES.find(a => a.id === activityId);
+                const dateInput = form.querySelector('#observation-date').value;
+                const observationDate = new Date(dateInput);
 
-                    console.log(`Catalogue mis à jour. Total: ${allObservations.length} observations.`);
-
-                    // Mise à jour de la vue courante pour refléter les changements de données
-                    const container = document.getElementById('main-content-container');
-                    const isInForm = container.querySelector('#observation-form');
-                    
-                    if (currentView === 'catalogue') {
-                        // Re-render the catalogue if we are currently viewing it
-                        container.innerHTML = renderCatalogue();
-                    } else if (currentView === 'activites' && !isInForm) {
-                        // Re-render the activity selection if we are viewing it
-                        container.innerHTML = renderActivitySelection();
+                const details = {};
+                activity.fields.forEach(field => {
+                    const input = form.querySelector(`#${field.name}`);
+                    if (input) {
+                        let value = input.value;
+                        if (field.type === 'number' && value !== '') {
+                            value = parseFloat(value);
+                        }
+                        details[field.name] = value;
                     }
                 });
 
-            } catch (error) {
-                console.error("Erreur de chargement des données initiales:", error);
-            }
-        }
+                const newObservation = {
+                    activityId: activityId,
+                    activityName: activity.name,
+                    date: observationDate,
+                    observerId: userId,
+                    details: details,
+                    timestamp: serverTimestamp() // Ajout d'un horodatage côté serveur
+                };
 
-        /** Génère le HTML pour le catalogue d'observations. */
-        function renderCatalogue() {
-            return `
-                <div class="p-4 sm:p-6 lg:p-8">
-                    <h1 class="text-3xl font-extrabold text-gray-900 mb-6 flex justify-between items-center">
-                        Catalogue d'Observations 
-                        <span class="text-base font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">${allObservations.length} entrées</span>
-                    </h1>
+                try {
+                    // Utiliser la fonction addDoc pour laisser Firestore générer l'ID
+                    await addDoc(collection(db, getCollectionPath()), newObservation);
                     
-                    <button onclick="generatePDFReport()" class="no-print bg-green-600 text-white p-2 px-4 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-150 mb-6 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text mr-2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-                        Générer Rapport PDF
-                    </button>
+                    updateOfflineIndicator();
                     
-                    <div id="report-content">
-                        ${allObservations.length === 0 ? 
-                            '<p class="text-gray-500 italic p-8 bg-gray-50 rounded-lg text-center">Aucune observation n\'a encore été enregistrée. Commencez par créer une activité!</p>' :
-                            allObservations.map(obs => renderObservationCard(obs)).join('')
+                    console.log("Nouvelle observation enregistrée:", newObservation);
+                    
+                    showCustomModal('Succès!', 'L\'observation a été enregistrée avec succès.', [
+                        {text: 'Ajouter une autre', action: () => { hideCustomModal(); switchView('activites'); }, style: 'bg-indigo-600 hover:bg-indigo-700'},
+                        {text: 'Voir le catalogue', action: () => { hideCustomModal(); switchView('catalogue'); }, style: 'bg-gray-400 hover:bg-gray-500'}
+                    ]);
+
+                } catch (e) {
+                    console.error("Erreur lors de l'ajout du document: ", e);
+                    showCustomModal('Erreur d\'Enregistrement', 'Désolé, une erreur est survenue lors de l\'enregistrement de votre observation.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
+                }
+            };
+
+            /**
+             * Charge les données initiales du catalogue et configure l'écoute en temps réel.
+             */
+            async function loadInitialData() {
+                if (!db || !userId) return;
+
+                try {
+                    const q = query(collection(db, getCollectionPath()));
+                    
+                    // Écouter les changements en temps réel
+                    onSnapshot(q, (snapshot) => {
+                        allObservations = [];
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            allObservations.push({
+                                id: doc.id,
+                                ...data,
+                                // Convertir le timestamp Firestore en objet Date si nécessaire
+                                date: data.date instanceof Date ? data.date : (data.date?.toDate() || null)
+                            });
+                        });
+
+                        // Trier par date (du plus récent au plus ancien)
+                        allObservations.sort((a, b) => b.date - a.date);
+
+                        console.log(`Catalogue mis à jour. Total: ${allObservations.length} observations.`);
+
+                        // Mise à jour de la vue courante pour refléter les changements de données
+                        const container = document.getElementById('main-content-container');
+                        const isInForm = container.querySelector('#observation-form');
+                        
+                        if (currentView === 'catalogue') {
+                            // Re-render the catalogue if we are currently viewing it
+                            container.innerHTML = renderCatalogue();
+                        } else if (currentView === 'activites' && !isInForm) {
+                            // Re-render the activity selection if we are viewing it
+                            container.innerHTML = renderActivitySelection();
                         }
-                    </div>
-                </div>
-            `;
-        }
+                    });
 
-        /** Génère la carte HTML pour une observation. */
-        function renderObservationCard(obs) {
-            const activity = ACTIVITIES.find(a => a.id === obs.activityId) || { icon: '', name: 'Inconnu' };
-            const dateStr = obs.date ? new Date(obs.date).toLocaleString('fr-FR', { 
-                year: 'numeric', month: 'short', day: 'numeric', 
-                hour: '2-digit', minute: '2-digit'
-            }) : 'Date inconnue';
-
-            return `
-                <div class="observation-card hover:bg-gray-50 transition duration-150 relative">
-                    <div class="flex items-start justify-between mb-3">
-                        <h3 class="text-lg font-bold text-indigo-700 flex items-center">
-                            <span class="text-indigo-600 mr-2">${activity.icon}</span>
-                            ${activity.name}
-                        </h3>
-                        <div class="no-print flex space-x-2">
-                            <button onclick="deleteObservation('${obs.id}')" class="text-red-500 hover:text-red-700 p-1 rounded-full transition duration-150" title="Supprimer">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <p class="text-sm text-gray-500 mb-4">
-                        <span class="font-semibold text-gray-700">Date:</span> ${dateStr}
-                        <span class="ml-4 font-semibold text-gray-700">Observateur:</span> ${obs.observerId.substring(0, 8)}...
-                    </p>
-
-                    <div class="mt-2 space-y-2 text-sm">
-                        ${Object.entries(obs.details).map(([key, value]) => {
-                            if (value && value !== '') {
-                                const fieldDef = ACTIVITIES.find(a => a.id === obs.activityId)?.fields.find(f => f.name === key);
-                                const label = fieldDef ? fieldDef.label : key;
-                                return `<p class="border-l-4 border-indigo-200 pl-3">
-                                            <span class="font-medium text-gray-700">${label}:</span> 
-                                            <span class="text-gray-600">${value}</span>
-                                        </p>`;
-                            }
-                            return '';
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        /** * Supprime une observation de Firestore après confirmation. 
-         */
-        window.deleteObservation = function(observationId) {
-            showCustomModal(
-                'Confirmer la Suppression', 
-                'Êtes-vous sûr de vouloir supprimer cette observation? Cette action est irréversible.', 
-                [
-                    {
-                        text: 'Supprimer', 
-                        action: async () => {
-                            hideCustomModal();
-                            try {
-                                const docRef = doc(db, getCollectionPath(), observationId);
-                                await deleteDoc(docRef);
-                                // Forcer la mise à jour de l'indicateur après suppression réussie
-                                updateOfflineIndicator();
-                                console.log("Observation supprimée avec succès:", observationId);
-                            } catch (e) {
-                                console.error("Erreur lors de la suppression:", e);
-                                showCustomModal('Erreur', 'Impossible de supprimer l\'observation.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
-                            }
-                        }, 
-                        style: 'bg-red-600 hover:bg-red-700'
-                    },
-                    {
-                        text: 'Annuler', 
-                        action: hideCustomModal, 
-                        style: 'bg-gray-400 hover:bg-gray-500'
-                    }
-                ]
-            );
-        };
-
-        /** * Déclenche la fonction d'impression du navigateur pour générer un PDF. 
-         */
-        window.generatePDFReport = function() {
-            window.print();
-        };
-        
-        // --- GESTION DU MODE HORS LIGNE (FIX) ---
-
-        // Fonction pour mettre à jour l'indicateur de mode hors ligne
-        function updateOfflineIndicator() {
-            const indicator = document.getElementById('offline-indicator');
-            if (indicator) {
-                // Vrai si le navigateur est hors ligne
-                if (!navigator.onLine) {
-                    indicator.classList.remove('hidden');
-                    console.warn("Mode Hors Ligne Activé.");
-                } else {
-                    indicator.classList.add('hidden');
-                    console.log("Mode En Ligne Réactivé.");
+                } catch (error) {
+                    console.error("Erreur de chargement des données initiales:", error);
                 }
             }
-        }
 
-        // Événements pour détecter les changements de statut en ligne/hors ligne
-        window.addEventListener('online', updateOfflineIndicator);
-        window.addEventListener('offline', updateOfflineIndicator);
+            /** Génère le HTML pour le catalogue d'observations. */
+            function renderCatalogue() {
+                return `
+                    <div class="p-4 sm:p-6 lg:p-8">
+                        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 flex justify-between items-center">
+                            Catalogue d'Observations 
+                            <span class="text-base font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">${allObservations.length} entrées</span>
+                        </h1>
+                        
+                        <button onclick="generatePDFReport()" class="no-print bg-green-600 text-white p-2 px-4 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-150 mb-6 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text mr-2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                            Générer Rapport PDF
+                        </button>
+                        
+                        <div id="report-content">
+                            ${allObservations.length === 0 ? 
+                                '<p class="text-gray-500 italic p-8 bg-gray-50 rounded-lg text-center">Aucune observation n\'a encore été enregistrée. Commencez par créer une activité!</p>' :
+                                allObservations.map(obs => renderObservationCard(obs)).join('')
+                            }
+                        </div>
+                    </div>
+                `;
+            }
 
-        // FIX: Initialiser l'état de l'indicateur dès que le script est chargé 
-        updateOfflineIndicator();
-        
-        // --- INITIALISATION FINALE ---
-        
-        // Simuler l'injection du logo (pour le look & feel)
-        document.getElementById('nav-logo-placeholder').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-soil text-indigo-600 mr-3"><path d="M4 17a4 4 0 0 0 2 1.5c.34.2.66.4.99.56C12 21 16 22 20 22"/><path d="M12 2c3.5 0 6 2.5 6 6v1H6V8c0-3.5 2.5-6 6-6Z"/><path d="M12 17v-4"/><path d="M16 17v-4"/><path d="M8 17v-4"/></svg>`;
+            /** Génère la carte HTML pour une observation. */
+            function renderObservationCard(obs) {
+                const activity = ACTIVITIES.find(a => a.id === obs.activityId) || { icon: '', name: 'Inconnu' };
+                const dateStr = obs.date ? new Date(obs.date).toLocaleString('fr-FR', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit'
+                }) : 'Date inconnue';
 
-        // Afficher la vue initiale
-        switchView('activites'); 
+                return `
+                    <div class="observation-card hover:bg-gray-50 transition duration-150 relative">
+                        <div class="flex items-start justify-between mb-3">
+                            <h3 class="text-lg font-bold text-indigo-700 flex items-center">
+                                <span class="text-indigo-600 mr-2">${activity.icon}</span>
+                                ${activity.name}
+                            </h3>
+                            <div class="no-print flex space-x-2">
+                                <button onclick="deleteObservation('${obs.id}')" class="text-red-500 hover:text-red-700 p-1 rounded-full transition duration-150" title="Supprimer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <p class="text-sm text-gray-500 mb-4">
+                            <span class="font-semibold text-gray-700">Date:</span> ${dateStr}
+                            <span class="ml-4 font-semibold text-gray-700">Observateur:</span> ${obs.observerId.substring(0, 8)}...
+                        </p>
+
+                        <div class="mt-2 space-y-2 text-sm">
+                            ${Object.entries(obs.details).map(([key, value]) => {
+                                if (value && value !== '') {
+                                    const fieldDef = ACTIVITIES.find(a => a.id === obs.activityId)?.fields.find(f => f.name === key);
+                                    const label = fieldDef ? fieldDef.label : key;
+                                    return `<p class="border-l-4 border-indigo-200 pl-3">
+                                                <span class="font-medium text-gray-700">${label}:</span> 
+                                                <span class="text-gray-600">${value}</span>
+                                            </p>`;
+                                }
+                                return '';
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            /** * Supprime une observation de Firestore après confirmation. 
+             */
+            window.deleteObservation = function(observationId) {
+                showCustomModal(
+                    'Confirmer la Suppression', 
+                    'Êtes-vous sûr de vouloir supprimer cette observation? Cette action est irréversible.', 
+                    [
+                        {
+                            text: 'Supprimer', 
+                            action: async () => {
+                                hideCustomModal();
+                                try {
+                                    const docRef = doc(db, getCollectionPath(), observationId);
+                                    await deleteDoc(docRef);
+                                    // Forcer la mise à jour de l'indicateur après suppression réussie
+                                    updateOfflineIndicator();
+                                    console.log("Observation supprimée avec succès:", observationId);
+                                } catch (e) {
+                                    console.error("Erreur lors de la suppression:", e);
+                                    showCustomModal('Erreur', 'Impossible de supprimer l\'observation.', [{text: 'OK', action: hideCustomModal, style: 'bg-red-500 hover:bg-red-600'}]);
+                                }
+                            }, 
+                            style: 'bg-red-600 hover:bg-red-700'
+                        },
+                        {
+                            text: 'Annuler', 
+                            action: hideCustomModal, 
+                            style: 'bg-gray-400 hover:bg-gray-500'
+                        }
+                    ]
+                );
+            };
+
+            /** * Déclenche la fonction d'impression du navigateur pour générer un PDF. 
+             */
+            window.generatePDFReport = function() {
+                window.print();
+            };
+            
+            // --- GESTION DU MODE HORS LIGNE (FIX) ---
+
+            // Fonction pour mettre à jour l'indicateur de mode hors ligne
+            function updateOfflineIndicator() {
+                const indicator = document.getElementById('offline-indicator');
+                if (indicator) {
+                    // Vrai si le navigateur est hors ligne
+                    if (!navigator.onLine) {
+                        indicator.classList.remove('hidden');
+                        console.warn("Mode Hors Ligne Activé.");
+                    } else {
+                        indicator.classList.add('hidden');
+                        console.log("Mode En Ligne Réactivé.");
+                    }
+                }
+            }
+
+            // Événements pour détecter les changements de statut en ligne/hors ligne
+            window.addEventListener('online', updateOfflineIndicator);
+            window.addEventListener('offline', updateOfflineIndicator);
+
+            // FIX: Initialiser l'état de l'indicateur dès que le script est chargé 
+            updateOfflineIndicator();
+            
+            // --- INITIALISATION FINALE ---
+            
+            // Simuler l'injection du logo (pour le look & feel)
+            document.getElementById('nav-logo-placeholder').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-soil text-indigo-600 mr-3"><path d="M4 17a4 4 0 0 0 2 1.5c.34.2.66.4.99.56C12 21 16 22 20 22"/><path d="M12 2c3.5 0 6 2.5 6 6v1H6V8c0-3.5 2.5-6 6-6Z"/><path d="M12 17v-4"/><path d="M16 17v-4"/><path d="M8 17v-4"/></svg>`;
+
+            // Afficher la vue initiale
+            switchView('activites'); 
+        })();
     </script>
 </body>
 </html>

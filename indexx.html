@@ -136,7 +136,6 @@
         }
 
         // NOUVELLES ACTIVITÉS (DOMAINE D'OBSERVATION)
-        // ** VÉRIFIÉES ET CORRECTES SELON VOTRE DERNIÈRE DEMANDE **
         const ACTIVITIES = [
             { id: 'langage', name: "Le Langage", description: "Observation de la communication verbale, non-verbale et de la compréhension.", icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10h10"/><path d="M7 14h10"/></svg>`, fields: [
                 { name: 'observed_communication', label: "Description de la communication observée", type: 'textarea', required: true },
@@ -169,6 +168,10 @@
                 { name: 'self_management', label: "Notes sur la gestion de soi et l'initiative", type: 'textarea', required: false }
             ]}
         ];
+
+        // *** DEBUG: VÉRIFICATION DE LA VERSION DU CODE ***
+        console.log(`[ARGILE-B] Version du Script chargée: 2025.10.24. Total des activités: ${ACTIVITIES.length}.`);
+        // **********************************************
 
         let allObservations = []; // Stocke toutes les observations chargées
         let currentView = 'activites'; // Vue par défaut
@@ -213,7 +216,7 @@
          */
         function switchView(view) {
             // Pas de return si la vue est la même pour forcer le rafraîchissement
-            // if (view === currentView) return; 
+            // si l'utilisateur change de vue et revient.
             currentView = view;
             
             const container = document.getElementById('main-content-container');
@@ -239,6 +242,12 @@
         function renderActivitySelection() {
             return `
                 <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- DEBUG MARKER: AFFICHE LA VERSION DU SCRIPT POUR CONFIRMATION -->
+                    <p class="text-xs text-green-600 mb-4 font-semibold p-2 bg-green-50 rounded-lg border border-green-200">
+                        Script Version: 2025.10.24 (6 Domaines Corrects)
+                    </p>
+                    <!----------------------------------------------------------------->
+
                     <h1 class="text-3xl font-extrabold text-gray-900 mb-6">Sélectionnez un Domaine d'Observation</h1>
                     <p class="text-lg text-gray-600 mb-8">Choisissez le domaine de développement que vous souhaitez documenter.</p>
                     
@@ -403,20 +412,17 @@
 
                     console.log(`Catalogue mis à jour. Total: ${allObservations.length} observations.`);
 
-                    // --- CORRECTION CRITIQUE DU RAFRAÎCHISSEMENT ---
-                    // S'assurer que les cartes d'activité sont correctement rendues
-                    // si l'utilisateur est sur la vue 'activites' et non dans un formulaire.
+                    // Mise à jour de la vue courante pour refléter les changements de données
                     const container = document.getElementById('main-content-container');
                     const isInForm = container.querySelector('#observation-form');
                     
                     if (currentView === 'catalogue') {
+                        // Re-render the catalogue if we are currently viewing it
                         container.innerHTML = renderCatalogue();
                     } else if (currentView === 'activites' && !isInForm) {
-                         // Si l'utilisateur est sur la page d'accueil des activités (sans formulaire actif), 
-                         // on force le re-rendu pour garantir l'affichage des activités mises à jour.
+                        // Re-render the activity selection if we are viewing it
                         container.innerHTML = renderActivitySelection();
                     }
-                    // ----------------------------------------------------
                 });
 
             } catch (error) {

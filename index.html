@@ -1,2265 +1,905 @@
-================================================================================
-                     CODE SOURCE COMPLET - APPLICATION ARGILE-B
-                    Application d'observation pédagogique pour le développement de l'enfant
-================================================================================
-
-================================================================================
-1. FICHIER PRINCIPAL - index.html
-================================================================================
-
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta property="og:title" content="ARGILE-B" />
-    <meta property="og:description" content="Application d'observation pédagogique pour le développement de l'enfant" />
-    <meta
-      property="og:image"
-      content="https://mocha-cdn.com/og.png"
-      type="image/png"
-    />
-    <meta
-      property="og:url"
-      content="https://getmocha.com"
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:author" content="ARGILE-B" />
-    <meta property="og:site_name" content="ARGILE-B" />
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:site" content="@argile_b" />
-    <meta property="twitter:title" content="ARGILE-B" />
-    <meta property="twitter:description" content="Application d'observation pédagogique pour le développement de l'enfant" />
-    <meta
-      property="twitter:image"
-      content="https://mocha-cdn.com/og.png"
-      type="image/png"
-    />
-    <link
-      rel="shortcut icon"
-      href="https://mocha-cdn.com/favicon.ico"
-      type="image/x-icon"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="https://mocha-cdn.com/apple-touch-icon.png"
-      type="image/png"
-    />
-    <title>ARGILE-B</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/react-app/main.tsx"></script>
-  </body>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARGILE-B - Application Unifiée</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        /* Styles spécifiques au rapport PDF */
+        #report-content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .observation-card {
+            page-break-inside: avoid;
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        /* Styles pour la navigation */
+        .nav-link.active {
+            font-weight: 700;
+            border-bottom: 3px solid #4f46e5; /* Indigo */
+            color: #4f46e5;
+        }
+        /* Notification & Loader styles */
+        #notification-box {
+            position: fixed; top: 1.5rem; right: 1.5rem; max-width: 350px; z-index: 1000;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out; transform: translateX(100%); opacity: 0;
+        }
+        #notification-box.show { transform: translateX(0); opacity: 1; }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%;
+            width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Styles des cartes d'activité */
+        .activity-card {
+            /* Ombre initiale pour le relief */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            /* Transition plus fluide pour les effets de survol */
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+            /* La bordure par défaut reste visible pour le survol */
+            border-color: #e2e8f0;
+        }
+        /* Classe de Survol (Hover Effects) pour la Chaleur et le Relief */
+        .activity-card:hover {
+            /* Relief: augmente la shadow (shadow-xl) et soulève légèrement (translate-y-1) */
+            transform: translateY(-4px); 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08); 
+            /* Chaleur: fond légèrement teinté de blanc cassé et bordure douce */
+            background-color: #fcfcfd; 
+            border-color: #c7d2fe; /* Une teinte plus douce d'indigo (indigo-300) */
+        }
+        .tag {
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Styles de la modale pour le profil */
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 990; display: none;
+        }
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; border-radius: 12px; padding: 2rem; z-index: 1000; max-width: 500px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: none;
+        }
+        /* Masquer pour l'impression */
+         @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL FIREBASE VARIABLES (MANDATORY) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // --- GLOBAL APP STATE & DB SETUP ---
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let unsubscribe = null;
+        let isMockMode = false; // Indicateur pour savoir si on est en mode factice
+        
+        let state = {
+            currentView: 'activites',
+            observations: [],
+            childProfile: {
+                name: "Leo",
+                age: 4,
+                currentGoal: "Motricité Fine (pinces)",
+                lastObservation: "N/A"
+            }
+        };
+        
+        setLogLevel('Debug'); // Log level for debugging Firestore
+
+        // --- DATA STRUCTURE FOR ACTIVITIES (inchangée) ---
+        const activitiesData = [
+            { id: 1, title: "Jeu de tri par couleurs", category: "Cognitive", color: "pink", level: 1, duration: "10min", description: "Classification pour l'organisation et la reconnaissance des couleurs.", icons: ["🎨", "💡"], sequence: ["Préparez des objets de différentes couleurs.", "Demandez à l'enfant de trier dans des bacs séparés."] },
+            { id: 2, title: "Séquence d'images", category: "Cognitive", color: "pink", level: 2, duration: "15min", description: "Mise en ordre chronologique d'images pour la logique séquentielle et la compréhension temporelle.", icons: ["⏱️", "🧩"], sequence: ["Présentez 3-4 images dans le désordre (ex: planter, arroser, récolter).", "Demandez à l'enfant de les remettre dans l'ordre logique."] },
+            { id: 3, title: "Construction libre", category: "Créative", color: "yellow", level: 2, duration: "30min", description: "Expression créative à travers la construction (Lego, blocs) pour développer l'imagination.", icons: ["🧱", "🚀"], sequence: ["Fournir des blocs de différentes tailles.", "Laisser l'enfant construire ce qu'il souhaite sans directive."] },
+            { id: 4, title: "Jeu de rôle : Le magasin", category: "Sociale", color: "green", level: 3, duration: "20min", description: "Simulation d'interactions sociales pour développer l'empathie et la communication. Ce texte est volontairement plus long pour tester l'alignement des boutons.", icons: ["🤝", "🛒"], sequence: ["Attribuer les rôles de client et de vendeur (utiliser de la fausse monnaie).", "Encourager l'enfant à utiliser des phrases de politesse et à négocier."] },
+            { id: 5, title: "S'habiller seul(e)", category: "Autonomie", color: "blue", level: 1, duration: "15min", description: "Motricité fine et séquence pour encourager l'indépendance vestimentaire.", icons: ["👕", "👍"], sequence: ["Choisir des vêtements simples (élastiques, velcros).", "Guider l'enfant étape par étape (ex: mettre le bras droit, puis le gauche)."] },
+            { id: 6, title: "Parcours de motricité", category: "Motricité", color: "purple", level: 2, duration: "25min", description: "Développement des habiletés motrices et de l'équilibre à travers un parcours physique physique simple.", icons: ["🏃", "🤸"], sequence: ["Créer un chemin avec des coussins, des cerceaux ou des lignes au sol.", "Encourager l'enfant à sauter, marcher à cloche-pied, ramper."] }
+        ];
+
+        // --- SVG DEFINITIONS (Mise à jour avec le logo Cœur) ---
+        const heartLogoSVG = (classes = 'w-10 h-10 mr-4 text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+            </svg>
+        `;
+        const xIconSVG = (classes = 'w-5 h-5') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M18 6L6 18"></path>
+                <path d="M6 6L18 18"></path>
+            </svg>
+        `;
+        const userIconSVG = (classes = 'w-5 h-5') => `
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                 <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        `;
+        const targetIconSVG = (classes = 'text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 ml-1 ${classes}">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+        `;
+        // SVG inline pour l'icône Plus
+        const plusIconSVG = (classes = 'w-5 h-5 mr-2 text-indigo-500') => `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}">
+                <path d="M5 12h14"></path>
+                <path d="M12 5v14"></path>
+            </svg>
+        `;
+        // SVG inline pour l'icône Search
+        const searchIconSVG = `
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-gray-500">
+                 <circle cx="11" cy="11" r="8"></circle>
+                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        `;
+
+        
+        // --- UTILITY FUNCTIONS (Notification, Profile Modal - Légèrement Modifiées) ---
+
+        function showNotification(message, type = 'success') {
+            const box = document.getElementById('notification-box');
+            const iconContainer = document.getElementById('notification-icon');
+            const messageElement = document.getElementById('notification-message');
+            
+            box.classList.remove('bg-green-100', 'bg-red-100', 'bg-blue-100', 'show', 'border-green-500', 'border-red-500', 'border-blue-500', 'bg-indigo-100', 'border-indigo-500');
+            box.classList.remove('text-green-800', 'text-red-800', 'text-blue-800', 'text-indigo-800');
+            iconContainer.innerHTML = '';
+            
+            let bgColor, textColor, iconHtml, borderColor;
+
+            // Déterminer les couleurs et icônes
+            switch (type) {
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; borderColor = 'border-green-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'; break;
+                case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-800'; borderColor = 'border-red-500'; iconHtml = xIconSVG('w-5 h-5'); break;
+                case 'loading': bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; borderColor = 'border-blue-500'; iconHtml = '<div class="loader"></div>'; break;
+                case 'info': bgColor = 'bg-indigo-100'; textColor = 'text-indigo-800'; borderColor = 'border-indigo-500'; iconHtml = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'; break;
+                default: bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; borderColor = 'border-gray-500'; iconHtml = '';
+            }
+            
+            box.classList.add(bgColor, textColor, borderColor);
+            iconContainer.innerHTML = iconHtml;
+            messageElement.textContent = message;
+
+            box.classList.add('show');
+            
+            // Si c'est le message HORS LIGNE, le laisser affiché indéfiniment
+            // Nous utilisons désormais 'info' pour ce mode pour une apparence moins agressive.
+            if (message.indexOf('HORS LIGNE') !== -1) {
+                box.setAttribute('data-permanent', 'true');
+            } else {
+                 box.removeAttribute('data-permanent');
+                 // Masquer après 5s si ce n'est pas un message permanent ou de chargement
+                 if (type !== 'loading') {
+                     setTimeout(() => { box.classList.remove('show'); }, 5000);
+                 }
+            }
+        }
+        
+        window.toggleProfileModal = (show) => {
+            const modal = document.getElementById('profile-modal');
+            const backdrop = document.getElementById('modal-backdrop');
+            if (show) {
+                modal.style.display = 'block';
+                backdrop.style.display = 'block';
+            } else {
+                modal.style.display = 'none';
+                backdrop.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Logique d'initialisation Firebase avec bascule robuste vers le mode factice.
+         * Mode MOCK activé si la configuration est manquante ou invalide.
+         */
+        async function setupFirebase() {
+            if (app) return; // Empêche la réinitialisation
+            
+            let config = null;
+            
+            // 1. Déterminer si nous pouvons nous connecter (Mode EN LIGNE)
+            if (firebaseConfigString && firebaseConfigString.trim().length > 0) {
+                try {
+                    config = JSON.parse(firebaseConfigString);
+                    // Vérifier la présence minimale (apiKey)
+                    if (!config.apiKey) {
+                        console.warn("Configuration Firebase invalide : apiKey manquante. Forçage du mode HORS LIGNE.");
+                        isMockMode = true;
+                    } else {
+                        isMockMode = false;
+                    }
+                } catch (e) {
+                    // La configuration existe mais est mal formatée (JSON invalide)
+                    console.warn("Configuration Firebase trouvée, mais JSON invalide. Forçage du mode HORS LIGNE.", e);
+                    isMockMode = true;
+                }
+            } else {
+                // Config manquante/vide : c'est l'état attendu, pas une erreur du code.
+                isMockMode = true;
+                console.info("Configuration Firebase manquante. Passage en mode HORS LIGNE.");
+            }
+
+            // 2. Initialisation et Authentification
+            if (!isMockMode) {
+                // Tenter l'initialisation EN LIGNE
+                try {
+                    app = initializeApp(config);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    // Tentative d'authentification
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (authError) {
+                        console.error("Erreur d'authentification:", authError);
+                        showNotification(`Erreur d'authentification: ${authError.message}`, 'error');
+                        isMockMode = true; // Bascule en mode Mock si l'auth échoue
+                    }
+                } catch (error) {
+                    // Échec d'initialisation même avec la config fournie (ex: mauvaise clé)
+                    console.error("Échec critique de initializeApp:", error);
+                    isMockMode = true; // Forcer le mode mock si l'init échoue
+                }
+            }
+            
+            // 3. Gestion de l'état MOCK/EN LIGNE et de l'écoute
+            if (isMockMode) {
+                // Utiliser 'info' pour un démarrage harmonieux
+                showNotification("Mode HORS LIGNE ACTIF: Base de données désactivée.", 'info'); 
+                state.observations = [];
+                updateUserIdDisplay(null);
+                renderObservations([]);
+            } else {
+                 // Écouteur d'état d'authentification pour gérer l'UID et les listeners
+                 onAuthStateChanged(auth, (user) => {
+                     if (user) {
+                         userId = user.uid;
+                         startDataListener();
+                         updateUserIdDisplay(userId); 
+                     } else {
+                         userId = null;
+                         state.observations = [];
+                         updateUserIdDisplay(null); 
+                         if (state.currentView === 'catalogue') renderObservations([]);
+                     }
+                     renderApp(); // Rafraîchir pour mettre à jour l'état de l'utilisateur
+                 });
+            }
+
+            renderApp(); // Rafraîchir l'interface initiale
+        }
+
+        function getCollectionRef() {
+            // S'assurer que db est initialisé et qu'on n'est pas en mode factice
+            if (isMockMode || !db || !userId || !app) {
+                console.warn("Tentative d'accès à la base de données alors que le mode HORS LIGNE est actif.");
+                return null;
+            }
+            // Chemin de collection public pour un partage collaboratif
+            return collection(db, 'artifacts', appId, 'public', 'data', 'observations');
+        }
+
+        function startDataListener() {
+            // Ne pas tenter de se connecter si on est en mode factice
+            if (isMockMode) return; 
+            
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            const colRef = getCollectionRef();
+            if (!colRef) return;
+
+            const q = query(colRef); 
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const observations = [];
+                snapshot.forEach(doc => {
+                    observations.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Tri par date en JavaScript (le plus récent en premier)
+                observations.sort((a, b) => {
+                    const dateA = a.createdAt?.seconds || 0;
+                    const dateB = b.createdAt?.seconds || 0;
+                    return dateB - dateA;
+                });
+                
+                state.observations = observations;
+                if (state.currentView === 'catalogue') {
+                    renderObservations(observations);
+                }
+                
+                // Mettre à jour la date de dernière observation dans l'état
+                if (observations.length > 0) {
+                    const latestDate = observations[0].createdAt?.toDate ? 
+                        observations[0].createdAt.toDate().toLocaleDateString('fr-FR') : 
+                        'N/A';
+                    state.childProfile.lastObservation = latestDate;
+                    if (state.currentView === 'activites') {
+                         renderApp();
+                    }
+                }
+
+            }, (error) => {
+                console.error("Erreur de l'écouteur Firestore:", error);
+                showNotification(`Erreur de synchronisation: ${error.message}`, 'error');
+            });
+        }
+        
+        function updateUserIdDisplay(id) {
+            const displayElement = document.getElementById('user-id-display');
+            const statusIndicator = document.getElementById('status-indicator');
+            
+            if (statusIndicator) {
+                if (isMockMode) {
+                    // Utiliser une couleur subtile (gris ou indigo) pour le mode HORS LIGNE
+                    statusIndicator.className = 'text-sm text-indigo-500 font-bold mt-2';
+                    statusIndicator.textContent = '⚠️ MODE HORS LIGNE (Base de données désactivée)';
+                } else if (id) {
+                    statusIndicator.className = 'text-sm text-green-500 font-bold mt-2';
+                    statusIndicator.textContent = '✅ MODE EN LIGNE (Synchronisé)';
+                } else {
+                    statusIndicator.className = 'text-sm text-gray-500 font-bold mt-2';
+                    statusIndicator.textContent = '⏳ Connexion en cours...';
+                }
+            }
+            
+            if (displayElement) {
+                if (id) {
+                    // Correction: Assurer que l'élément existe avant de modifier
+                    displayElement.textContent = `ID Utilisateur: ${id}`;
+                } else {
+                    displayElement.textContent = 'ID Utilisateur: Non authentifié';
+                }
+            }
+        }
+
+
+        // --- VIEW RENDERING LOGIC (Modifiée pour l'alignement des boutons) ---
+        function renderApp() {
+            const mainContent = document.getElementById('main-content-container');
+            if (!mainContent) return;
+
+            if (state.currentView === 'activites') {
+                mainContent.innerHTML = renderActivitiesView();
+            } else { // 'catalogue'
+                mainContent.innerHTML = renderCatalogueView();
+                attachCatalogueListeners();
+                updateUserIdDisplay(userId); 
+                renderObservations(state.observations);
+            }
+            updateNavigationView();
+        }
+
+        function updateNavigationView() {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.getElementById(`nav-${state.currentView}`);
+            if (activeLink) activeLink.classList.add('active');
+        }
+
+        function renderActivityCard(activity) {
+            const levelColor = activity.color; 
+            const levelTextMap = { 1: 'Débutant', 2: 'Intermédiaire', 3: 'Avancé' };
+
+            // Les classes de survol sont ajoutées ici.
+            return `
+                <div class="activity-card bg-white p-6 rounded-xl border border-gray-200 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="tag bg-${levelColor}-100 text-${levelColor}-700">${activity.category}</div>
+                        <span class="text-sm font-medium text-gray-500 flex items-center">
+                            Niveau ${activity.level} (${levelTextMap[activity.level]})
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">${activity.title}</h3>
+                    
+                    <!-- Contenu variable (prend l'espace restant pour pousser le bouton vers le bas) -->
+                    <div class="flex-grow"> 
+                        <!-- Pictogrammes -->
+                        <div class="flex space-x-3 mb-3">
+                            ${activity.icons.map(icon => `<span class="text-3xl hover:scale-110 transition duration-150" title="${activity.category}">${icon}</span>`).join('')}
+                        </div>
+                        
+                        <p class="text-gray-600 text-sm mb-4">${activity.description}</p>
+
+                        <!-- Séquence détaillée -->
+                        <div class="bg-gray-50 p-3 rounded-lg text-sm mb-4">
+                            <p class="font-semibold text-gray-700 mb-2">Séquence détaillée:</p>
+                            <ol class="list-decimal list-inside text-gray-600 ml-4 space-y-1">
+                                ${activity.sequence.map((step, index) => `<li class="pl-1">${step}</li>`).join('')}
+                            </ol>
+                        </div>
+                    </div>
+                    <!-- Fin Contenu variable -->
+
+                    <button onclick="showNotification('Activité lancée: ${activity.title}. Enregistrez vos observations dans le catalogue!', 'info')"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md flex justify-center items-center mt-auto">
+                        ${targetIconSVG('text-white').replace('w-4 h-4 ml-1', 'w-5 h-5 mr-2')}
+                        Commencer l'Activité
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderActivitiesView() {
+            const profile = state.childProfile;
+            const profileData = `Âge : ${profile.age} ans | Dernière Observation : ${profile.lastObservation}`;
+            const currentGoal = profile.currentGoal;
+            
+            return `
+                <div class="p-4 md:p-8">
+                    <header class="text-center mb-6">
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-700 tracking-tight flex items-center justify-center">
+                            ${heartLogoSVG('w-10 h-10 mr-4 text-indigo-600 fill-current')}
+                            ARGILE-B Activités
+                        </h1>
+                        <p class="text-gray-500 mt-2">Catalogue des activités pour le développement personnalisé de l'enfant.</p>
+                    </header>
+                    
+                    <!-- Section Profil de l'Enfant (Éditable - Simulation) -->
+                    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-indigo-500">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex items-center">
+                                ${userIconSVG('w-8 h-8 text-indigo-500 mr-4')}
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800">Profil de ${profile.name}</h2>
+                                    <p class="text-sm text-gray-600">${profileData}</p>
+                                </div>
+                            </div>
+                            <button onclick="toggleProfileModal(true)"
+                                class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                                Modifier le Profil
+                            </button>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-700 border-t pt-3">
+                            <p class="font-semibold">Objectif actuel suggéré :</p>
+                            <p class="text-indigo-600 font-medium">${currentGoal}</p>
+                        </div>
+                    </div>
+                    <!-- Fin Section Profil de l'Enfant -->
+                    
+                    <!-- Barre de Catégories (Simplifiée) -->
+                    <div class="flex flex-wrap justify-center gap-2 p-3 bg-white rounded-xl shadow-md mb-8 max-w-4xl mx-auto">
+                        <span class="tag bg-indigo-100 text-indigo-700 hover:scale-105 cursor-pointer transition">Toutes</span>
+                        <span class="tag bg-pink-100 text-pink-700 hover:scale-105 cursor-pointer transition">Cognitive</span>
+                        <span class="tag bg-yellow-100 text-yellow-700 hover:scale-105 cursor-pointer transition">Créative</span>
+                        <span class="tag bg-green-100 text-green-700 hover:scale-105 cursor-pointer transition">Sociale</span>
+                        <span class="tag bg-blue-100 text-blue-700 hover:scale-105 cursor-pointer transition">Autonomie</span>
+                        <span class="tag bg-purple-100 text-purple-700 hover:scale-105 cursor-pointer transition">Motricité</span>
+                    </div>
+
+                    <!-- Grille des Cartes d'Activités -->
+                    <!-- Note: La hauteur des cartes est gérée par flex flex-col h-full dans renderActivityCard -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                        ${activitiesData.map(renderActivityCard).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+
+        // ==========================================================
+        // === VUE 2 : CATALOGUE D'OBSERVATIONS (Base de Données) ===
+        // ==========================================================
+
+        function renderCatalogueView() {
+            return `
+                <div class="max-w-4xl mx-auto p-4 md:p-8">
+                    <header class="text-center mb-8">
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight flex items-center justify-center">
+                            ${heartLogoSVG('w-10 h-10 mr-4 text-gray-800 fill-current')}
+                            Catalogue d'Observations
+                        </h1>
+                        <!-- CORRECTION: L'élément user-id-display doit être présent pour éviter l'erreur -->
+                        <p id="user-id-display" class="text-xs text-gray-500 mt-1">ID Utilisateur: Chargement...</p> 
+                        <p id="status-indicator" class="text-sm font-bold mt-2">⏳ Connexion en cours...</p>
+                    </header>
+
+                    <!-- Formulaire d'ajout d'observation -->
+                    <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8 border-t-4 border-green-500">
+                        <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
+                            ${plusIconSVG()}
+                            Ajouter une Nouvelle Observation
+                        </h2>
+                        <form id="observation-form" class="space-y-4">
+                            <div>
+                                <label for="title" class="block text-sm font-medium text-gray-700">Titre de l'Observation</label>
+                                <input type="text" id="title" required
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
+                            </div>
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-gray-700">Catégorie</label>
+                                <select id="category"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}>
+                                    <option value="Nature">Nature</option>
+                                    <option value="Environnement">Environnement</option>
+                                    <option value="Comportement">Comportement</option>
+                                    <option value="Motricite">Motricité</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="description" class="block text-sm font-medium text-gray-700">Description Détaillée</label>
+                                <textarea id="description" rows="4" required
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500" ${isMockMode ? 'disabled' : ''}></textarea>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 shadow-md flex justify-center items-center ${isMockMode ? 'opacity-50 cursor-not-allowed' : ''}" ${isMockMode ? 'disabled' : ''}>
+                                ${plusIconSVG('w-5 h-5 mr-2 text-white')}
+                                Enregistrer l'Observation
+                            </button>
+                            ${isMockMode ? '<p class="text-sm text-red-500 mt-2 text-center">Formulaire désactivé : Mode HORS LIGNE actif.</p>' : ''}
+                        </form>
+                    </div>
+
+                    <!-- Liste des observations et bouton de rapport -->
+                    <div class="mb-4 flex justify-between items-center flex-wrap gap-4 no-print">
+                        <h2 class="text-2xl font-bold text-gray-700 flex items-center">
+                            ${searchIconSVG}
+                            Liste des Observations
+                        </h2>
+                        <button id="generatePdfButton"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md flex items-center"
+                            title="Télécharger un rapport PDF des observations">
+                            <!-- SVG Intégré (Icone de document) pour la stabilité -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="10" y2="9"></line></svg>
+                            Générer Rapport PDF
+                        </button>
+                    </div>
+                    
+                    <!-- Contenu qui sera capturé pour le PDF -->
+                    <div id="report-content">
+                        <div id="observations-list" class="space-y-3">
+                            <!-- Les observations seront insérées ici par JavaScript -->
+                            <p class="text-center text-gray-500 py-8">Chargement des observations...</p>
+                        </div>
+                    </div>
+                    <!-- Fin du contenu à capturer -->
+                </div>
+            `;
+        }
+
+        /**
+         * Re-attaches necessary event listeners for the Catalogue View.
+         */
+        function attachCatalogueListeners() {
+            setTimeout(() => {
+                const form = document.getElementById('observation-form');
+                if (form) form.addEventListener('submit', handleSubmit);
+
+                const pdfButton = document.getElementById('generatePdfButton');
+                if (pdfButton) pdfButton.addEventListener('click', generatePdfReport);
+            }, 0);
+        }
+
+        // --- CATALOGUE DATA MANIPULATION FUNCTIONS (inchangées) ---
+
+        function renderObservations(observations) {
+            if (state.currentView !== 'catalogue') return; 
+            
+            const listContainer = document.getElementById('observations-list');
+            if (!listContainer) return;
+            
+            if (isMockMode || observations.length === 0) {
+                 listContainer.innerHTML = `
+                     <p class="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-lg">
+                         ${isMockMode ? 'Base de données désactivée (Mode HORS LIGNE). Aucune observation n\'est affichée.' : 'Aucune observation enregistrée. Commencez à en ajouter une ci-dessus !'}
+                     </p>
+                 `;
+                 return;
+            }
+
+            listContainer.innerHTML = observations.map(obs => {
+                const dateStr = obs.createdAt?.toDate ? 
+                    obs.createdAt.toDate().toLocaleDateString('fr-FR', {
+                        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }) : 
+                    'En cours...';
+
+                return `
+                    <div id="obs-${obs.id}" class="observation-card flex justify-between items-start">
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-semibold text-gray-800">${obs.title}</h3>
+                            <p class="text-sm text-gray-600 mb-2">Catégorie: <span class="font-medium text-indigo-600">${obs.category}</span></p>
+                            <p class="text-xs text-gray-500 mb-3">Créé le: ${obs.creatorId ? obs.creatorId.substring(0, 8) + '...' : 'Anonyme'} | ${dateStr}</p>
+                            <p class="text-gray-700 whitespace-pre-wrap">${obs.description}</p>
+                        </div>
+                        <div class="no-print">
+                            <button onclick="window.deleteObservation('${obs.id}')"
+                                class="text-red-500 hover:text-red-700 transition duration-150 p-1 rounded-full hover:bg-red-50" 
+                                title="Supprimer" ${isMockMode ? 'disabled' : ''}>
+                                ${xIconSVG('w-5 h-5')}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            if (isMockMode || !userId) {
+                showNotification("Enregistrement impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
+                return;
+            }
+
+            const title = document.getElementById('title').value.trim();
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value.trim();
+
+            if (!title || !description) {
+                showNotification("Le titre et la description ne peuvent pas être vides.", 'error');
+                return;
+            }
+
+            const colRef = getCollectionRef();
+            if (!colRef) {
+                showNotification("Erreur: Impossible d'accéder à la base de données. ID Utilisateur manquant.", 'error');
+                return;
+            }
+
+            showNotification("Ajout de l'observation...", 'loading');
+
+            try {
+                await addDoc(colRef, {
+                    title, category, description, creatorId: userId, createdAt: serverTimestamp()
+                });
+
+                document.getElementById('observation-form').reset();
+                showNotification("Observation ajoutée avec succès !", 'success');
+
+            } catch (error) {
+                console.error("Erreur lors de l'ajout de l'observation:", error);
+                showNotification(`Échec de l'ajout: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteObservation(docId) {
+            if (isMockMode || !userId) {
+                 showNotification("Suppression impossible: Base de données désactivée ou utilisateur non authentifié.", 'info');
+                return;
+            }
+            // Retiré le message de confirmation par l'administrateur
+            // showNotification("La suppression nécessite une confirmation manuelle de l'administrateur dans une application réelle.", 'info');
+            
+            showNotification("Suppression de l'observation...", 'loading');
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'observations', docId);
+                await deleteDoc(docRef);
+                showNotification("Observation supprimée avec succès.", 'success');
+            } catch (error) {
+                console.error("Erreur lors de la suppression:", error);
+                showNotification(`Échec de la suppression: ${error.message}`, 'error');
+            }
+        }
+        window.deleteObservation = deleteObservation;
+
+
+        // --- PDF GENERATION FUNCTION (inchangées) ---
+        async function generatePdfReport() {
+            // Désactiver le bouton et montrer le chargement
+            const button = document.getElementById('generatePdfButton');
+            button.disabled = true;
+            const originalButtonText = button.innerHTML;
+            button.innerHTML = '<div class="loader inline-block"></div> Génération...';
+
+            showNotification("Génération du rapport PDF en cours...", 'loading');
+            
+            const reportArea = document.getElementById('report-content');
+            if (!reportArea) {
+                showNotification("Erreur : Contenu du rapport introuvable.", 'error');
+                button.innerHTML = originalButtonText;
+                button.disabled = false;
+                return;
+            }
+            
+            setTimeout(async () => {
+                try {
+                    // Masquer les boutons de suppression pour la capture PDF (utiliser no-print)
+                    // document.querySelectorAll('.observation-card .no-print').forEach(btn => btn.style.display = 'none');
+
+                    const canvas = await html2canvas(reportArea, { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollY: -window.scrollY });
+                    
+                    // Rétablir les boutons après la capture (utiliser no-print)
+                    // document.querySelectorAll('.observation-card .no-print').forEach(btn => btn.style.display = 'block');
+
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const imgHeight = canvas.height * pdfWidth / canvas.width;
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+                    let currentY = 0;
+                    let pageIndex = 0;
+                    const pageContentHeight = pdfHeight - 25; // Réduire la hauteur de page pour le titre
+
+                    while (currentY < imgHeight) {
+                        if (pageIndex > 0) { pdf.addPage(); }
+                        
+                        pdf.setFontSize(16); pdf.setTextColor(55, 65, 81);
+                        pdf.text("Rapport d'Observations ARGILE-B", pdfWidth / 2, 10, { align: 'center' });
+                        pdf.setFontSize(10); pdf.setTextColor(107, 114, 128);
+                        const date = new Date().toLocaleDateString('fr-FR');
+                        pdf.text(`Généré le: ${date}`, pdfWidth / 2, 18, { align: 'center' });
+                        
+                        const yOffset = -currentY;
+                        
+                        pdf.addImage(
+                            imgData, 'JPEG', 0, 20, pdfWidth, imgHeight, null, 'FAST', 0, 
+                            yOffset * (pdfWidth / canvas.width) + 20 // Décaler y pour le titre
+                        );
+                        
+                        currentY += pageContentHeight * (canvas.width / pdfWidth); 
+                        pageIndex++;
+                    }
+
+
+                    const dateTitle = new Date().toISOString().slice(0, 10);
+                    const title = `Rapport_Observations_${dateTitle}`;
+                    pdf.save(title + '.pdf');
+                    showNotification("Rapport PDF généré et téléchargé avec succès !", 'success');
+
+                } catch (error) {
+                    console.error("Erreur lors de la génération du PDF:", error);
+                    showNotification(`Échec de la génération du PDF: ${error.message}`, 'error');
+                } finally {
+                    button.innerHTML = originalButtonText;
+                    button.disabled = false;
+                }
+            }, 50); // Petit délai pour laisser le loader s'afficher
+        }
+        window.generatePdfReport = generatePdfReport;
+        window.switchView = (viewName) => { 
+            state.currentView = viewName; 
+            renderApp(); 
+        };
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            // Démarrer l'affichage IMMEDIATEMENT
+            state.currentView = 'activites'; 
+            renderApp(); 
+            
+            // FIX: Inject SVG into static Nav Bar
+            const navLogo = document.getElementById('nav-logo-placeholder');
+            if (navLogo) {
+                 navLogo.innerHTML = heartLogoSVG('w-8 h-8 mr-2 text-indigo-600 fill-current');
+            }
+
+            // Tente de configurer Firebase en arrière-plan
+            setupFirebase();
+        };
+    </script>
+</head>
+
+<body class="p-0">
+    
+    <!-- Notification Box -->
+    <div id="notification-box" role="alert" class="rounded-lg border-l-4 p-4 shadow-xl flex items-center">
+        <div id="notification-icon" class="flex-shrink-0 mr-3"></div>
+        <div class="flex-grow">
+            <p id="notification-message" class="text-sm font-medium"></p>
+        </div>
+    </div>
+
+    <!-- Modale de simulation de l'édition du Profil de l'enfant -->
+    <div id="modal-backdrop" class="modal-backdrop" onclick="toggleProfileModal(false)"></div>
+    <div id="profile-modal" class="modal">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+            <h3 class="text-xl font-bold text-indigo-600">Modification du Profil de l'Enfant</h3>
+            <button onclick="toggleProfileModal(false)" class="text-gray-400 hover:text-gray-600">
+                ${xIconSVG('w-6 h-6')}
+            </button>
+        </div>
+        <form class="py-4 space-y-4">
+            <div>
+                <label for="profile-name" class="block text-sm font-medium text-gray-700">Nom de l'enfant</label>
+                <input type="text" id="profile-name" value="${state.childProfile.name}"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="profile-age" class="block text-sm font-medium text-gray-700">Âge (ans)</label>
+                <input type="number" id="profile-age" value="${state.childProfile.age}"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="profile-goal" class="block text-sm font-medium text-gray-700">Objectif principal actuel</label>
+                <input type="text" id="profile-goal" value="${state.childProfile.currentGoal}"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <button type="button" onclick="showNotification('Profil enregistré (Simulation). Une base de données utilisateur est requise pour la persistance réelle.', 'info'); toggleProfileModal(false);"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition duration-150 shadow-md">
+                Sauvegarder les Modifications
+            </button>
+        </form>
+        <p class="text-xs text-gray-500 mt-3 border-t pt-2">Note: Dans une application réelle, ces données seraient stockées de manière privée sur la base de données Firestore liée à votre utilisateur.</p>
+    </div>
+
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-md sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo/Title -->
+                <div class="flex-shrink-0 flex items-center">
+                    <!-- Placeholder pour le logo SVG injecté en JS -->
+                    <div id="nav-logo-placeholder"></div>
+                    <span class="text-2xl font-extrabold text-gray-900">ARGILE-<span class="text-indigo-600">B</span></span>
+                </div>
+                <!-- Navigation Links -->
+                <div class="flex space-x-6">
+                    <a href="#" id="nav-activites" onclick="switchView('activites')"
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
+                        Activités
+                    </a>
+                    <a href="#" id="nav-catalogue" onclick="switchView('catalogue')"
+                       class="nav-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition duration-150">
+                        Catalogue d'Observations
+                    </a>
+                </div>
+                 <!-- CORRECTION: Ajout de l'élément pour afficher l'ID utilisateur -->
+                 <div class="flex items-center space-x-2 text-xs text-gray-500">
+                    ${userIconSVG('w-4 h-4')}
+                    <span id="user-id-display">Chargement...</span>
+                 </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content Container (Controlled by JavaScript) -->
+    <div id="main-content-container" class="max-w-7xl mx-auto">
+        <p class="text-center text-gray-500 py-12">Initialisation de l'interface...</p>
+    </div>
+
+</body>
 </html>
 
-================================================================================
-2. TYPES PARTAGÉS - src/shared/types.ts
-================================================================================
-
-import z from "zod";
-
-// Activity field schema
-export const ActivityFieldSchema = z.object({
-  name: z.string(),
-  label: z.string(),
-  type: z.enum(['text', 'textarea', 'number']),
-  required: z.boolean(),
-});
-
-export type ActivityField = z.infer<typeof ActivityFieldSchema>;
-
-// Activity schema
-export const ActivitySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  icon: z.string(),
-  fields: z.array(ActivityFieldSchema),
-});
-
-export type Activity = z.infer<typeof ActivitySchema>;
-
-// Observation details schema (flexible object)
-export const ObservationDetailsSchema = z.record(z.union([z.string(), z.number()]));
-
-export type ObservationDetails = z.infer<typeof ObservationDetailsSchema>;
-
-// Observation schema
-export const ObservationSchema = z.object({
-  id: z.number().optional(),
-  activity_id: z.string(),
-  activity_name: z.string(),
-  observation_date: z.string(),
-  observer_id: z.string(),
-  details: ObservationDetailsSchema,
-  child_id: z.number(),
-  child_name: z.string().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-});
-
-export type Observation = z.infer<typeof ObservationSchema>;
-
-// Create observation request schema
-export const CreateObservationSchema = z.object({
-  activity_id: z.string(),
-  observation_date: z.string(),
-  details: ObservationDetailsSchema,
-  child_id: z.number(),
-});
-
-export type CreateObservationRequest = z.infer<typeof CreateObservationSchema>;
-
-// Child profile schema
-export const ChildSchema = z.object({
-  id: z.number().optional(),
-  name: z.string(),
-  birth_date: z.string().optional(),
-  class_level: z.string().optional(),
-  notes: z.string().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-});
-
-export type Child = z.infer<typeof ChildSchema>;
-
-// Create child request schema
-export const CreateChildSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  birth_date: z.string().optional(),
-  class_level: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-export type CreateChildRequest = z.infer<typeof CreateChildSchema>;
-
-================================================================================
-3. WORKER BACKEND - src/worker/index.ts
-================================================================================
-
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { CreateObservationSchema, CreateChildSchema, type Observation, type Child } from "@/shared/types";
-import { ACTIVITIES } from "@/react-app/data/activities";
-
-const app = new Hono<{ Bindings: Env }>();
-
-// Enable CORS for frontend requests
-app.use("*", cors());
-
-// Get all observations with child information
-app.get("/api/observations", async (c) => {
-  try {
-    const stmt = c.env.DB.prepare(`
-      SELECT o.*, c.name as child_name 
-      FROM observations o 
-      LEFT JOIN children c ON o.child_id = c.id 
-      ORDER BY o.observation_date DESC
-    `);
-    const { results } = await stmt.all();
-    
-    const observations: Observation[] = results.map((row: any) => ({
-      id: row.id,
-      activity_id: row.activity_id,
-      activity_name: row.activity_name,
-      observation_date: row.observation_date,
-      observer_id: row.observer_id,
-      details: JSON.parse(row.details),
-      child_id: row.child_id,
-      child_name: row.child_name,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
-
-    return c.json(observations);
-  } catch (error) {
-    console.error("Error fetching observations:", error);
-    return c.json({ error: "Failed to fetch observations" }, 500);
-  }
-});
-
-// Create a new observation
-app.post("/api/observations", async (c) => {
-  try {
-    const body = await c.req.json();
-    const validation = CreateObservationSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return c.json({ error: "Invalid request data", details: validation.error }, 400);
-    }
-
-    const { activity_id, observation_date, details, child_id } = validation.data;
-    
-    // Find the activity to get its name
-    const activity = ACTIVITIES.find(a => a.id === activity_id);
-    if (!activity) {
-      return c.json({ error: "Invalid activity ID" }, 400);
-    }
-
-    // Generate a simple observer ID (in a real app, this would come from authentication)
-    const observer_id = "observer_" + Math.random().toString(36).substr(2, 9);
-
-    const stmt = c.env.DB.prepare(
-      `INSERT INTO observations (activity_id, activity_name, observation_date, observer_id, details, child_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    );
-
-    const result = await stmt.bind(
-      activity_id,
-      activity.name,
-      observation_date,
-      observer_id,
-      JSON.stringify(details),
-      child_id
-    ).run();
-
-    if (result.success) {
-      return c.json({ 
-        id: result.meta.last_row_id,
-        message: "Observation created successfully"
-      }, 201);
-    } else {
-      return c.json({ error: "Failed to create observation" }, 500);
-    }
-  } catch (error) {
-    console.error("Error creating observation:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-// Delete an observation
-app.delete("/api/observations/:id", async (c) => {
-  try {
-    const id = c.req.param("id");
-    
-    const stmt = c.env.DB.prepare("DELETE FROM observations WHERE id = ?");
-    const result = await stmt.bind(id).run();
-
-    if (result.success) {
-      return c.json({ message: "Observation deleted successfully" });
-    } else {
-      return c.json({ error: "Observation not found" }, 404);
-    }
-  } catch (error) {
-    console.error("Error deleting observation:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-// Get activities list
-app.get("/api/activities", async (c) => {
-  return c.json(ACTIVITIES);
-});
-
-// Get all children
-app.get("/api/children", async (c) => {
-  try {
-    const stmt = c.env.DB.prepare("SELECT * FROM children ORDER BY name");
-    const { results } = await stmt.all();
-    
-    const children: Child[] = results.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      birth_date: row.birth_date,
-      class_level: row.class_level,
-      notes: row.notes,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
-
-    return c.json(children);
-  } catch (error) {
-    console.error("Error fetching children:", error);
-    return c.json({ error: "Failed to fetch children" }, 500);
-  }
-});
-
-// Create a new child
-app.post("/api/children", async (c) => {
-  try {
-    const body = await c.req.json();
-    const validation = CreateChildSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return c.json({ error: "Invalid request data", details: validation.error }, 400);
-    }
-
-    const { name, birth_date, class_level, notes } = validation.data;
-
-    const stmt = c.env.DB.prepare(
-      `INSERT INTO children (name, birth_date, class_level, notes)
-       VALUES (?, ?, ?, ?)`
-    );
-
-    const result = await stmt.bind(
-      name,
-      birth_date || null,
-      class_level || null,
-      notes || null
-    ).run();
-
-    if (result.success) {
-      return c.json({ 
-        id: result.meta.last_row_id,
-        message: "Child profile created successfully"
-      }, 201);
-    } else {
-      return c.json({ error: "Failed to create child profile" }, 500);
-    }
-  } catch (error) {
-    console.error("Error creating child:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-// Update a child
-app.put("/api/children/:id", async (c) => {
-  try {
-    const id = c.req.param("id");
-    const body = await c.req.json();
-    const validation = CreateChildSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return c.json({ error: "Invalid request data", details: validation.error }, 400);
-    }
-
-    const { name, birth_date, class_level, notes } = validation.data;
-
-    const stmt = c.env.DB.prepare(
-      `UPDATE children 
-       SET name = ?, birth_date = ?, class_level = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    );
-
-    const result = await stmt.bind(
-      name,
-      birth_date || null,
-      class_level || null,
-      notes || null,
-      id
-    ).run();
-
-    if (result.success) {
-      return c.json({ message: "Child profile updated successfully" });
-    } else {
-      return c.json({ error: "Child not found" }, 404);
-    }
-  } catch (error) {
-    console.error("Error updating child:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-// Delete a child
-app.delete("/api/children/:id", async (c) => {
-  try {
-    const id = c.req.param("id");
-    
-    const stmt = c.env.DB.prepare("DELETE FROM children WHERE id = ?");
-    const result = await stmt.bind(id).run();
-
-    if (result.success) {
-      return c.json({ message: "Child profile deleted successfully" });
-    } else {
-      return c.json({ error: "Child not found" }, 404);
-    }
-  } catch (error) {
-    console.error("Error deleting child:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-export default app;
-
-================================================================================
-4. APPLICATION REACT PRINCIPALE - src/react-app/main.tsx
-================================================================================
-
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import "@/react-app/index.css";
-import App from "@/react-app/App.tsx";
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-
-================================================================================
-5. ROUTEUR PRINCIPAL - src/react-app/App.tsx
-================================================================================
-
-import { BrowserRouter as Router, Routes, Route } from "react-router";
-import HomePage from "@/react-app/pages/Home";
-
-export default function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-      </Routes>
-    </Router>
-  );
-}
-
-================================================================================
-6. STYLES PRINCIPAUX - src/react-app/index.css
-================================================================================
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-:root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-}
-
-body {
-  background-color: #f7f9fb;
-}
-
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .observation-card {
-    page-break-inside: avoid;
-    background-color: #fff;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 12px;
-    padding: 16px;
-    border-radius: 8px;
-  }
-  
-  body {
-    background-color: #ffffff;
-  }
-}
-
-================================================================================
-7. PAGE PRINCIPALE - src/react-app/pages/Home.tsx
-================================================================================
-
-import { useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
-
-import Layout from '@/react-app/components/Layout';
-import ActivityCard from '@/react-app/components/ActivityCard';
-import ObservationForm from '@/react-app/components/ObservationForm';
-
-import ObservationCatalog from '@/react-app/components/ObservationCatalog';
-import ChildProfileForm from '@/react-app/components/ChildProfileForm';
-import ChildProfileCard from '@/react-app/components/ChildProfileCard';
-import Modal from '@/react-app/components/Modal';
-
-import { ACTIVITIES } from '@/react-app/data/activities';
-import { useObservations } from '@/react-app/hooks/useObservations';
-import { useChildren } from '@/react-app/hooks/useChildren';
-import { Activity, CreateObservationRequest, CreateChildRequest, Child } from '@/shared/types';
-
-type View = 'activites' | 'catalogue' | 'profils' | 'form' | 'childForm';
-
-interface ModalState {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  actions: Array<{
-    text: string;
-    onClick: () => void;
-    style: string;
-  }>;
-}
-
-export default function Home() {
-  const [currentView, setCurrentView] = useState<View>('activites');
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
-  const [modal, setModal] = useState<ModalState>({
-    isOpen: false,
-    title: '',
-    message: '',
-    actions: []
-  });
-
-  const { observations, loading, error, createObservation, deleteObservation } = useObservations();
-  const { 
-    children, 
-    loading: childrenLoading, 
-    error: childrenError, 
-    createChild, 
-    updateChild, 
-    deleteChild 
-  } = useChildren();
-
-  const showModal = (title: string, message: string, actions: ModalState['actions']) => {
-    setModal({ isOpen: true, title, message, actions });
-  };
-
-  const hideModal = () => {
-    setModal(prev => ({ ...prev, isOpen: false }));
-  };
-
-  const handleActivitySelect = (activity: Activity) => {
-    setSelectedActivity(activity);
-    setCurrentView('form');
-  };
-
-  const handleObservationSubmit = async (observation: CreateObservationRequest) => {
-    const success = await createObservation(observation);
-    
-    if (success) {
-      showModal(
-        'Succès!', 
-        "L'observation a été enregistrée avec succès.", 
-        [
-          {
-            text: 'Ajouter une autre',
-            onClick: () => { hideModal(); setCurrentView('activites'); },
-            style: 'bg-indigo-600 hover:bg-indigo-700'
-          },
-          {
-            text: 'Voir le catalogue',
-            onClick: () => { hideModal(); setCurrentView('catalogue'); },
-            style: 'bg-gray-400 hover:bg-gray-500'
-          }
-        ]
-      );
-    } else {
-      showModal(
-        "Erreur d'Enregistrement",
-        "Désolé, une erreur est survenue lors de l'enregistrement de votre observation.",
-        [{ text: 'OK', onClick: hideModal, style: 'bg-red-500 hover:bg-red-600' }]
-      );
-    }
-    
-    return success;
-  };
-
-  const handleChildSubmit = async (childData: CreateChildRequest) => {
-    const success = selectedChild 
-      ? await updateChild(selectedChild.id!, childData)
-      : await createChild(childData);
-    
-    if (success) {
-      showModal(
-        'Succès!', 
-        selectedChild 
-          ? 'Le profil a été modifié avec succès.'
-          : 'Le profil de l\'enfant a été créé avec succès.', 
-        [
-          {
-            text: 'Continuer',
-            onClick: () => { hideModal(); setCurrentView('profils'); },
-            style: 'bg-indigo-600 hover:bg-indigo-700'
-          }
-        ]
-      );
-      setSelectedChild(null);
-    } else {
-      showModal(
-        'Erreur',
-        'Désolé, une erreur est survenue lors de l\'enregistrement du profil.',
-        [{ text: 'OK', onClick: hideModal, style: 'bg-red-500 hover:bg-red-600' }]
-      );
-    }
-    
-    return success;
-  };
-
-  const handleDeleteChild = (childId: number, childName: string) => {
-    showModal(
-      'Confirmer la Suppression',
-      `Êtes-vous sûr de vouloir supprimer le profil de ${childName}? Cette action supprimera aussi toutes les observations associées.`,
-      [
-        {
-          text: 'Supprimer',
-          onClick: async () => {
-            hideModal();
-            await deleteChild(childId);
-          },
-          style: 'bg-red-600 hover:bg-red-700'
-        },
-        {
-          text: 'Annuler',
-          onClick: hideModal,
-          style: 'bg-gray-400 hover:bg-gray-500'
-        }
-      ]
-    );
-  };
-
-  const handleDeleteObservation = (observationId: number) => {
-    showModal(
-      'Confirmer la Suppression',
-      'Êtes-vous sûr de vouloir supprimer cette observation? Cette action est irréversible.',
-      [
-        {
-          text: 'Supprimer',
-          onClick: async () => {
-            hideModal();
-            await deleteObservation(observationId);
-          },
-          style: 'bg-red-600 hover:bg-red-700'
-        },
-        {
-          text: 'Annuler',
-          onClick: hideModal,
-          style: 'bg-gray-400 hover:bg-gray-500'
-        }
-      ]
-    );
-  };
-
-  const handlePrintReport = () => {
-    window.print();
-  };
-
-  const renderContent = () => {
-    if (loading || childrenLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      );
-    }
-
-    if (error || childrenError) {
-      return (
-        <div className="text-center p-8">
-          <p className="text-red-600 mb-4">Erreur: {error || childrenError}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition duration-150"
-          >
-            Réessayer
-          </button>
-        </div>
-      );
-    }
-
-    if (currentView === 'form' && selectedActivity) {
-      return (
-        <ObservationForm
-          activity={selectedActivity}
-          onSubmit={handleObservationSubmit}
-          onBack={() => setCurrentView('activites')}
-          children={children}
-        />
-      );
-    }
-
-    if (currentView === 'childForm') {
-      return (
-        <ChildProfileForm
-          child={selectedChild || undefined}
-          onSubmit={handleChildSubmit}
-          onBack={() => setCurrentView('profils')}
-          isEditing={!!selectedChild}
-        />
-      );
-    }
-
-    if (currentView === 'profils') {
-      return (
-        <div>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-900 flex items-center">
-              Profils d'Enfants
-              <span className="ml-4 text-base font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">
-                {children.length} profils
-              </span>
-            </h1>
-            
-            <button
-              onClick={() => {
-                setSelectedChild(null);
-                setCurrentView('childForm');
-              }}
-              className="bg-green-600 text-white p-2 px-4 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-150 flex items-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau Profil
-            </button>
-          </div>
-          
-          {children.length === 0 ? (
-            <div className="text-center p-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 mb-4">Aucun profil d'enfant n'a encore été créé.</p>
-              <button
-                onClick={() => {
-                  setSelectedChild(null);
-                  setCurrentView('childForm');
-                }}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150"
-              >
-                Créer le premier profil
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {children.map((child) => (
-                <ChildProfileCard
-                  key={child.id}
-                  child={child}
-                  onEdit={() => {
-                    setSelectedChild(child);
-                    setCurrentView('childForm');
-                  }}
-                  onDelete={() => handleDeleteChild(child.id!, child.name)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (currentView === 'catalogue') {
-      return (
-        <div>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-extrabold text-gray-900 flex items-center">
-              Catalogue d'Observations
-              <span className="ml-4 text-base font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">
-                {observations.length} entrées
-              </span>
-            </h1>
-            
-            <button
-              onClick={handlePrintReport}
-              className="no-print bg-green-600 text-white p-2 px-4 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-150 flex items-center"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Générer Rapport PDF
-            </button>
-          </div>
-          
-          <div id="report-content">
-            {observations.length === 0 ? (
-              <p className="text-gray-500 italic p-8 bg-gray-50 rounded-lg text-center">
-                Aucune observation n'a encore été enregistrée. Commencez par créer une activité!
-              </p>
-            ) : (
-              <ObservationCatalog
-                observations={observations}
-                activities={ACTIVITIES}
-                children={children}
-                onDeleteObservation={handleDeleteObservation}
-              />
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // Default: Activity selection
-    return (
-      <div>
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-6">
-          Sélectionnez un Domaine d'Observation
-        </h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Choisissez le domaine de développement que vous souhaitez documenter.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ACTIVITIES.map((activity) => (
-            <ActivityCard
-              key={activity.id}
-              activity={activity}
-              onClick={() => handleActivitySelect(activity)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <Layout
-        currentView={currentView === 'form' ? 'activites' : (currentView === 'childForm' ? 'profils' : currentView)}
-        onViewChange={(view) => setCurrentView(view)}
-        observationCount={observations.length}
-        childrenCount={children.length}
-      >
-        {renderContent()}
-      </Layout>
-
-      <Modal
-        isOpen={modal.isOpen}
-        title={modal.title}
-        message={modal.message}
-        actions={modal.actions}
-        onClose={hideModal}
-      />
-
-      <style>{`
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          .observation-card {
-            page-break-inside: avoid;
-            margin-bottom: 12px;
-          }
-        }
-      `}</style>
-    </>
-  );
-}
-
-================================================================================
-8. COMPOSANT LAYOUT - src/react-app/components/Layout.tsx
-================================================================================
-
-import { ReactNode } from 'react';
-import { CloudOff, Sprout } from 'lucide-react';
-
-interface LayoutProps {
-  children: ReactNode;
-  currentView: 'activites' | 'catalogue' | 'profils';
-  onViewChange: (view: 'activites' | 'catalogue' | 'profils') => void;
-  observationCount?: number;
-  childrenCount?: number;
-}
-
-export default function Layout({ children, currentView, onViewChange, observationCount = 0, childrenCount = 0 }: LayoutProps) {
-  const isOnline = navigator.onLine;
-
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Offline Indicator */}
-      {!isOnline && (
-        <div className="fixed top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-xl z-50 flex items-center justify-center space-x-2 transition duration-300 transform hover:scale-105" title="Mode Hors Ligne">
-          <CloudOff className="w-6 h-6" />
-        </div>
-      )}
-
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo/Title */}
-            <div className="flex-shrink-0 flex items-center">
-              <Sprout className="w-7 h-7 text-indigo-600 mr-3" />
-              <span className="text-2xl font-extrabold text-gray-900">
-                ARGILE-<span className="text-indigo-600">B</span>
-              </span>
-            </div>
-            
-            {/* Navigation Links */}
-            <div className="flex space-x-6">
-              <button
-                onClick={() => onViewChange('profils')}
-                className={`px-3 py-2 text-sm font-medium transition duration-150 ${
-                  currentView === 'profils'
-                    ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600'
-                    : 'text-gray-500 hover:text-indigo-600'
-                }`}
-              >
-                Profils d'Enfants
-                {childrenCount > 0 && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
-                    {childrenCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => onViewChange('activites')}
-                className={`px-3 py-2 text-sm font-medium transition duration-150 ${
-                  currentView === 'activites'
-                    ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600'
-                    : 'text-gray-500 hover:text-indigo-600'
-                }`}
-              >
-                Activités
-              </button>
-              <button
-                onClick={() => onViewChange('catalogue')}
-                className={`px-3 py-2 text-sm font-medium transition duration-150 ${
-                  currentView === 'catalogue'
-                    ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600'
-                    : 'text-gray-500 hover:text-indigo-600'
-                }`}
-              >
-                Catalogue d'Observations
-                {observationCount > 0 && (
-                  <span className="ml-2 text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">
-                    {observationCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="flex-grow p-4 sm:p-6 lg:p-8">
-        {children}
-      </main>
-    </div>
-  );
-}
-
-================================================================================
-9. COMPOSANT ACTIVITY CARD - src/react-app/components/ActivityCard.tsx
-================================================================================
-
-import { Activity } from '@/shared/types';
-import { getActivityColors } from '@/react-app/utils/activityColors';
-
-interface ActivityCardProps {
-  activity: Activity;
-  onClick: () => void;
-}
-
-export default function ActivityCard({ activity, onClick }: ActivityCardProps) {
-  const colors = getActivityColors(activity.id);
-  
-  return (
-    <div
-      onClick={onClick}
-      className={`${colors.bg} p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 cursor-pointer ${colors.border} border-2 ${colors.hoverBg}`}
-    >
-      <div 
-        className={`${colors.iconColor} mb-3`}
-        dangerouslySetInnerHTML={{ __html: activity.icon }}
-      />
-      <h2 className="text-xl font-bold text-gray-900 mb-2">{activity.name}</h2>
-      <p className={colors.text}>{activity.description}</p>
-    </div>
-  );
-}
-
-================================================================================
-10. COMPOSANT CHILD PROFILE CARD - src/react-app/components/ChildProfileCard.tsx
-================================================================================
-
-import { Edit, Trash2, User } from 'lucide-react';
-import { Child } from '@/shared/types';
-
-interface ChildProfileCardProps {
-  child: Child;
-  onEdit: () => void;
-  onDelete: () => void;
-}
-
-export default function ChildProfileCard({ child, onEdit, onDelete }: ChildProfileCardProps) {
-  const calculateAge = (birthDate: string) => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    const ageInYears = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      return ageInYears - 1;
-    }
-    return ageInYears;
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('fr-FR');
-  };
-
-  const age = child.birth_date ? calculateAge(child.birth_date) : null;
-
-  return (
-    <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-1 border border-gray-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center">
-          <div className="bg-indigo-100 p-3 rounded-full mr-4">
-            <User className="w-6 h-6 text-indigo-600" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">{child.name}</h3>
-            {age !== null && (
-              <p className="text-sm text-gray-500">{age} ans</p>
-            )}
-          </div>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={onEdit}
-            className="text-blue-500 hover:text-blue-700 p-1 rounded-full transition duration-150"
-            title="Modifier"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="text-red-500 hover:text-red-700 p-1 rounded-full transition duration-150"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-2 text-sm">
-        {child.birth_date && (
-          <p>
-            <span className="font-medium text-gray-700">Naissance:</span>{' '}
-            <span className="text-gray-600">{formatDate(child.birth_date)}</span>
-          </p>
-        )}
-        {child.class_level && (
-          <p>
-            <span className="font-medium text-gray-700">Classe:</span>{' '}
-            <span className="text-gray-600">{child.class_level}</span>
-          </p>
-        )}
-        {child.notes && (
-          <p>
-            <span className="font-medium text-gray-700">Notes:</span>{' '}
-            <span className="text-gray-600">{child.notes}</span>
-          </p>
-        )}
-      </div>
-
-      {!child.birth_date && !child.class_level && !child.notes && (
-        <p className="text-gray-400 italic text-sm">Aucune information complémentaire</p>
-      )}
-    </div>
-  );
-}
-
-================================================================================
-11. COMPOSANT CHILD PROFILE FORM - src/react-app/components/ChildProfileForm.tsx
-================================================================================
-
-import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { Child, CreateChildRequest } from '@/shared/types';
-
-interface ChildProfileFormProps {
-  child?: Child;
-  onSubmit: (child: CreateChildRequest) => Promise<boolean>;
-  onBack: () => void;
-  isEditing?: boolean;
-}
-
-export default function ChildProfileForm({ child, onSubmit, onBack, isEditing = false }: ChildProfileFormProps) {
-  const [formData, setFormData] = useState<CreateChildRequest>({
-    name: child?.name || '',
-    birth_date: child?.birth_date || '',
-    class_level: child?.class_level || '',
-    notes: child?.notes || '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleInputChange = (field: keyof CreateChildRequest, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setIsSubmitting(true);
-    const success = await onSubmit(formData);
-    
-    if (success) {
-      if (!isEditing) {
-        // Reset form on successful creation
-        setFormData({
-          name: '',
-          birth_date: '',
-          class_level: '',
-          notes: '',
-        });
-      }
-    }
-    
-    setIsSubmitting(false);
-  };
-
-  return (
-    <div className="max-w-xl mx-auto p-4 sm:p-8 bg-white rounded-xl shadow-2xl">
-      <button
-        onClick={onBack}
-        className="text-indigo-600 hover:text-indigo-800 flex items-center mb-6 transition duration-150"
-      >
-        <ArrowLeft className="w-5 h-5 mr-1" />
-        Retour aux Profils
-      </button>
-      
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-1">
-        {isEditing ? 'Modifier le Profil' : 'Nouveau Profil d\'Enfant'}
-      </h1>
-      <p className="text-gray-600 mb-8">
-        {isEditing ? 'Modifiez les informations du profil de l\'enfant' : 'Créez un nouveau profil pour documenter les observations'}
-      </p>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nom de l'enfant <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => handleInputChange('name', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            required
-            placeholder="Prénom Nom"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date de naissance
-          </label>
-          <input
-            type="date"
-            value={formData.birth_date}
-            onChange={(e) => handleInputChange('birth_date', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Niveau/Classe
-          </label>
-          <input
-            type="text"
-            value={formData.class_level}
-            onChange={(e) => handleInputChange('class_level', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Ex: PS, MS, GS, CP..."
-          />
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes particulières
-          </label>
-          <textarea
-            rows={4}
-            value={formData.notes}
-            onChange={(e) => handleInputChange('notes', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Informations importantes, besoins particuliers, contexte familial..."
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold shadow-lg hover:bg-indigo-700 transition duration-150 transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Enregistrement...' : (isEditing ? 'Modifier le Profil' : 'Créer le Profil')}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-================================================================================
-12. COMPOSANT OBSERVATION FORM - src/react-app/components/ObservationForm.tsx
-================================================================================
-
-import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { Activity, CreateObservationRequest, ObservationDetails, Child } from '@/shared/types';
-
-interface ObservationFormProps {
-  activity: Activity;
-  onSubmit: (observation: CreateObservationRequest) => Promise<boolean>;
-  onBack: () => void;
-  children: Child[];
-}
-
-export default function ObservationForm({ activity, onSubmit, onBack, children }: ObservationFormProps) {
-  const [formData, setFormData] = useState<ObservationDetails>({});
-  const [observationDate, setObservationDate] = useState(
-    new Date().toISOString().substring(0, 16)
-  );
-  const [selectedChildId, setSelectedChildId] = useState<number | undefined>(undefined);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleInputChange = (fieldName: string, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedChildId) {
-      alert('Veuillez sélectionner un enfant avant de soumettre l\'observation.');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    const observation: CreateObservationRequest = {
-      activity_id: activity.id,
-      observation_date: observationDate,
-      details: formData,
-      child_id: selectedChildId
-    };
-
-    const success = await onSubmit(observation);
-    
-    if (success) {
-      // Reset form on success
-      setFormData({});
-      setObservationDate(new Date().toISOString().substring(0, 16));
-      setSelectedChildId(undefined);
-    }
-    
-    setIsSubmitting(false);
-  };
-
-  return (
-    <div className="max-w-xl mx-auto p-4 sm:p-8 bg-white rounded-xl shadow-2xl">
-      <button
-        onClick={onBack}
-        className="text-indigo-600 hover:text-indigo-800 flex items-center mb-6 transition duration-150"
-      >
-        <ArrowLeft className="w-5 h-5 mr-1" />
-        Retour aux Domaines
-      </button>
-      
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-1">
-        Observation: {activity.name}
-      </h1>
-      <p className="text-gray-600 mb-8">{activity.description}</p>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Enfant observé
-            <span className="text-red-500 ml-1">*</span>
-          </label>
-          <select
-            value={selectedChildId || ''}
-            onChange={(e) => setSelectedChildId(e.target.value ? parseInt(e.target.value) : undefined)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-            required
-          >
-            <option value="">Sélectionnez un enfant</option>
-            {children.map((child) => (
-              <option key={child.id} value={child.id}>
-                {child.name} {child.class_level ? `(${child.class_level})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date et Heure
-          </label>
-          <input
-            type="datetime-local"
-            value={observationDate}
-            onChange={(e) => setObservationDate(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
-            required
-          />
-        </div>
-
-        {activity.fields.map((field) => (
-          <div key={field.name} className="mb-4">
-            <label htmlFor={field.name} className="block text-sm font-medium text-gray-700 mb-1">
-              {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            
-            {field.type === 'textarea' ? (
-              <textarea
-                id={field.name}
-                name={field.name}
-                rows={3}
-                value={formData[field.name] || ''}
-                onChange={(e) => handleInputChange(field.name, e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                required={field.required}
-              />
-            ) : (
-              <input
-                type={field.type}
-                id={field.name}
-                name={field.name}
-                value={formData[field.name] || ''}
-                onChange={(e) => handleInputChange(
-                  field.name, 
-                  field.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value
-                )}
-                className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                required={field.required}
-                step={field.type === 'number' ? 'any' : undefined}
-              />
-            )}
-          </div>
-        ))}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || !selectedChildId}
-          className="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold shadow-lg hover:bg-indigo-700 transition duration-150 transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Enregistrement...' : "Enregistrer l'Observation"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-================================================================================
-13. COMPOSANT OBSERVATION CARD - src/react-app/components/ObservationCard.tsx
-================================================================================
-
-import { Trash2, User, Calendar, BookOpen } from 'lucide-react';
-import { Observation, Activity, Child } from '@/shared/types';
-import { getActivityColors } from '@/react-app/utils/activityColors';
-
-interface ObservationCardProps {
-  observation: Observation;
-  activity: Activity | undefined;
-  child: Child | undefined;
-  onDelete: () => void;
-}
-
-export default function ObservationCard({ observation, activity, child, onDelete }: ObservationCardProps) {
-  const colors = getActivityColors(observation.activity_id);
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const calculateAge = (birthDate: string) => {
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    
-    return age;
-  };
-
-  return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200 hover:bg-gray-50 transition duration-150 relative observation-card">
-      {/* En-tête avec profil enfant */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="bg-indigo-100 p-2 rounded-lg">
-            <User className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-indigo-700">{child?.name || 'Enfant inconnu'}</h3>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              {child?.birth_date && (
-                <span className="flex items-center">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  {calculateAge(child.birth_date)} ans
-                </span>
-              )}
-              {child?.class_level && (
-                <span className="flex items-center">
-                  <BookOpen className="w-3 h-3 mr-1" />
-                  {child.class_level}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="no-print flex space-x-2">
-          <button
-            onClick={onDelete}
-            className="text-red-500 hover:text-red-700 p-1 rounded-full transition duration-150"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Activité observée */}
-      <div className={`${colors.bg} p-4 rounded-lg mb-4 ${colors.border} border-l-4`}>
-        <div className="flex items-center mb-2">
-          {activity && (
-            <span 
-              className={`${colors.iconColor} mr-2`}
-              dangerouslySetInnerHTML={{ __html: activity.icon }}
-            />
-          )}
-          <h4 className={`text-md font-semibold ${colors.text}`}>{observation.activity_name}</h4>
-        </div>
-        <p className="text-sm text-gray-600">
-          Observé le {formatDate(observation.observation_date)}
-        </p>
-      </div>
-
-      {/* Notes du profil enfant si disponibles */}
-      {child?.notes && (
-        <div className="bg-amber-50 border-l-4 border-amber-200 p-3 mb-4 rounded-r-lg">
-          <p className="text-sm text-amber-800">
-            <span className="font-medium">Notes sur l'enfant:</span> {child.notes}
-          </p>
-        </div>
-      )}
-
-      {/* Détails de l'observation */}
-      <div className="space-y-3">
-        <h5 className="text-sm font-medium text-gray-700 mb-2">Observations détaillées:</h5>
-        {Object.entries(observation.details).map(([key, value]) => {
-          if (value && value !== '') {
-            const fieldDef = activity?.fields.find(f => f.name === key);
-            const label = fieldDef ? fieldDef.label : key;
-            return (
-              <div key={key} className={`${colors.bg} p-3 rounded-lg border-l-4 ${colors.border}`}>
-                <p className="text-sm">
-                  <span className="font-medium text-gray-700">{label}:</span>{' '}
-                  <span className="text-gray-600">{value}</span>
-                </p>
-              </div>
-            );
-          }
-          return null;
-        })}
-      </div>
-    </div>
-  );
-}
-
-================================================================================
-14. COMPOSANT OBSERVATION CATALOG - src/react-app/components/ObservationCatalog.tsx
-================================================================================
-
-import { useState, useMemo } from 'react';
-import { Search, Filter, User, Calendar, ChevronDown } from 'lucide-react';
-import ObservationCard from './ObservationCard';
-import { Observation, Activity, Child } from '@/shared/types';
-import { getActivityColors } from '@/react-app/utils/activityColors';
-
-interface ObservationCatalogProps {
-  observations: Observation[];
-  activities: Activity[];
-  children: Child[];
-  onDeleteObservation: (id: number) => void;
-}
-
-export default function ObservationCatalog({ 
-  observations, 
-  activities, 
-  children, 
-  onDeleteObservation 
-}: ObservationCatalogProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedChild, setSelectedChild] = useState<string>('all');
-  const [selectedActivity, setSelectedActivity] = useState<string>('all');
-  const [showActivityDropdown, setShowActivityDropdown] = useState(false);
-
-  // Obtenir les activités disponibles pour l'enfant sélectionné
-  const availableActivities = useMemo(() => {
-    if (selectedChild === 'all') {
-      return activities;
-    }
-    const childObservations = observations.filter(obs => obs.child_id.toString() === selectedChild);
-    const childActivityIds = [...new Set(childObservations.map(obs => obs.activity_id))];
-    return activities.filter(activity => childActivityIds.includes(activity.id));
-  }, [selectedChild, observations, activities]);
-
-  // Filtrer les observations
-  const filteredObservations = observations.filter(observation => {
-    const matchesSearch = searchTerm === '' || 
-      observation.activity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      children.find(c => c.id === observation.child_id)?.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesChild = selectedChild === 'all' || observation.child_id.toString() === selectedChild;
-    const matchesActivity = selectedActivity === 'all' || observation.activity_id === selectedActivity;
-
-    return matchesSearch && matchesChild && matchesActivity;
-  });
-
-  // Grouper les observations par enfant
-  const observationsByChild = filteredObservations.reduce((acc, observation) => {
-    const childId = observation.child_id.toString();
-    if (!acc[childId]) {
-      acc[childId] = [];
-    }
-    acc[childId].push(observation);
-    return acc;
-  }, {} as Record<string, Observation[]>);
-
-  return (
-    <div className="space-y-6">
-      {/* Filtres et recherche */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Barre de recherche */}
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom d'enfant ou activité..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-
-          {/* Filtre par enfant */}
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <select
-              value={selectedChild}
-              onChange={(e) => setSelectedChild(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="all">Tous les enfants</option>
-              {children.map(child => (
-                <option key={child.id} value={child.id?.toString()}>
-                  {child.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Menu déroulant des activités par enfant */}
-          <div className="relative">
-            <button
-              onClick={() => setShowActivityDropdown(!showActivityDropdown)}
-              className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white flex items-center justify-between"
-            >
-              <div className="flex items-center">
-                <Filter className="w-4 h-4 text-gray-400 mr-2" />
-                <span className="text-gray-700">
-                  {selectedChild === 'all' 
-                    ? 'Activités par enfant' 
-                    : `Activités de ${children.find(c => c.id?.toString() === selectedChild)?.name || ''}`
-                  }
-                </span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showActivityDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showActivityDropdown && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setSelectedChild('all');
-                      setSelectedActivity('all');
-                      setShowActivityDropdown(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded hover:bg-gray-50 text-sm"
-                  >
-                    Tous les enfants - Toutes les activités
-                  </button>
-                </div>
-                <div className="border-t border-gray-200">
-                  {children.map(child => {
-                    const childObservations = observations.filter(obs => obs.child_id === child.id);
-                    const childActivities = [...new Set(childObservations.map(obs => obs.activity_id))]
-                      .map(activityId => activities.find(a => a.id === activityId))
-                      .filter(Boolean);
-                    
-                    if (childActivities.length === 0) return null;
-                    
-                    return (
-                      <div key={child.id} className="border-b border-gray-100 last:border-b-0">
-                        <div className="px-3 py-2 bg-gray-50 font-medium text-sm text-gray-700 flex items-center">
-                          <User className="w-3 h-3 mr-2" />
-                          {child.name} ({childActivities.length} activité{childActivities.length > 1 ? 's' : ''})
-                        </div>
-                        <div className="pl-6">
-                          <button
-                            onClick={() => {
-                              setSelectedChild(child.id?.toString() || '');
-                              setSelectedActivity('all');
-                              setShowActivityDropdown(false);
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-700"
-                          >
-                            Toutes ses activités ({childObservations.length} observations)
-                          </button>
-                          {childActivities.map(activity => {
-                            const activityObservations = childObservations.filter(obs => obs.activity_id === activity?.id);
-                            return (
-                              <button
-                                key={activity?.id}
-                                onClick={() => {
-                                  setSelectedChild(child.id?.toString() || '');
-                                  setSelectedActivity(activity?.id || '');
-                                  setShowActivityDropdown(false);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-700 pl-6"
-                              >
-                                • {activity?.name} ({activityObservations.length} observations)
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Filtre par activité classique */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <select
-              value={selectedActivity}
-              onChange={(e) => setSelectedActivity(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="all">Toutes les activités</option>
-              {availableActivities.map(activity => (
-                <option key={activity.id} value={activity.id}>
-                  {activity.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Compteurs et filtres actifs */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              {filteredObservations.length} observation(s) trouvée(s) sur {observations.length} total
-            </p>
-            <p className="text-sm text-gray-600">
-              {Object.keys(observationsByChild).length} enfant(s) concerné(s)
-            </p>
-          </div>
-          
-          {/* Filtres actifs */}
-          {(selectedChild !== 'all' || selectedActivity !== 'all' || searchTerm !== '') && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-gray-500">Filtres actifs:</span>
-              {selectedChild !== 'all' && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
-                  {children.find(c => c.id?.toString() === selectedChild)?.name}
-                  <button
-                    onClick={() => setSelectedChild('all')}
-                    className="ml-1 text-indigo-600 hover:text-indigo-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {selectedActivity !== 'all' && (
-                (() => {
-                  const activityColors = getActivityColors(selectedActivity);
-                  return (
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${activityColors.badgeBg} ${activityColors.badgeText}`}>
-                      {activities.find(a => a.id === selectedActivity)?.name}
-                      <button
-                        onClick={() => setSelectedActivity('all')}
-                        className={`ml-1 ${activityColors.text} hover:opacity-80`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })()
-              )}
-              {searchTerm !== '' && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                  "{searchTerm}"
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="ml-1 text-green-600 hover:text-green-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Résultats groupés par enfant */}
-      {Object.keys(observationsByChild).length === 0 ? (
-        <div className="text-center p-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">Aucune observation ne correspond à vos critères de recherche.</p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {Object.entries(observationsByChild).map(([childId, childObservations]) => {
-            const child = children.find(c => c.id?.toString() === childId);
-            if (!child) return null;
-
-            return (
-              <div key={childId} className="space-y-4">
-                {/* En-tête de l'enfant */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-indigo-100 p-2 rounded-full">
-                        <User className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-indigo-900">{child.name}</h3>
-                        <div className="flex items-center space-x-4 text-sm text-indigo-600">
-                          {child.birth_date && (
-                            <span className="flex items-center">
-                              <Calendar className="w-3 h-3 mr-1" />
-                              {new Date().getFullYear() - new Date(child.birth_date).getFullYear()} ans
-                            </span>
-                          )}
-                          {child.class_level && <span>{child.class_level}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {childObservations.length} observation(s)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Observations de l'enfant */}
-                <div className="grid gap-4 ml-4">
-                  {childObservations
-                    .sort((a, b) => new Date(b.observation_date).getTime() - new Date(a.observation_date).getTime())
-                    .map((observation) => {
-                      const activity = activities.find(a => a.id === observation.activity_id);
-                      return (
-                        <ObservationCard
-                          key={observation.id}
-                          observation={observation}
-                          activity={activity}
-                          child={child}
-                          onDelete={() => observation.id && onDeleteObservation(observation.id)}
-                        />
-                      );
-                    })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-================================================================================
-15. COMPOSANT MODAL - src/react-app/components/Modal.tsx
-================================================================================
-
-interface ModalAction {
-  text: string;
-  onClick: () => void;
-  style: string;
-}
-
-interface ModalProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  actions: ModalAction[];
-  onClose: () => void;
-}
-
-export default function Modal({ isOpen, title, message, actions }: ModalProps) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4 transform transition-all scale-100">
-        <h3 className="text-xl font-semibold mb-4 text-gray-900">{title}</h3>
-        <p className="text-gray-700 mb-6">{message}</p>
-        <div className="flex justify-end space-x-3">
-          {actions.map((action, index) => (
-            <button
-              key={index}
-              onClick={action.onClick}
-              className={`px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md transition duration-150 ${action.style}`}
-            >
-              {action.text}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-================================================================================
-16. HOOK USE CHILDREN - src/react-app/hooks/useChildren.ts
-================================================================================
-
-import { useState, useEffect } from 'react';
-import { Child, CreateChildRequest } from '@/shared/types';
-
-export function useChildren() {
-  const [children, setChildren] = useState<Child[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchChildren = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/children');
-      if (!response.ok) {
-        throw new Error('Failed to fetch children');
-      }
-      const data = await response.json();
-      setChildren(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createChild = async (child: CreateChildRequest) => {
-    try {
-      const response = await fetch('/api/children', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(child),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create child profile');
-      }
-
-      // Refresh the children list
-      await fetchChildren();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    }
-  };
-
-  const updateChild = async (id: number, child: CreateChildRequest) => {
-    try {
-      const response = await fetch(`/api/children/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(child),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update child profile');
-      }
-
-      // Refresh the children list
-      await fetchChildren();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    }
-  };
-
-  const deleteChild = async (id: number) => {
-    try {
-      const response = await fetch(`/api/children/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete child profile');
-      }
-
-      // Refresh the children list
-      await fetchChildren();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    fetchChildren();
-  }, []);
-
-  return {
-    children,
-    loading,
-    error,
-    createChild,
-    updateChild,
-    deleteChild,
-    refetch: fetchChildren,
-  };
-}
-
-================================================================================
-17. HOOK USE OBSERVATIONS - src/react-app/hooks/useObservations.ts
-================================================================================
-
-import { useState, useEffect } from 'react';
-import { Observation, CreateObservationRequest } from '@/shared/types';
-
-export function useObservations() {
-  const [observations, setObservations] = useState<Observation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchObservations = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/observations');
-      if (!response.ok) {
-        throw new Error('Failed to fetch observations');
-      }
-      const data = await response.json();
-      setObservations(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createObservation = async (observation: CreateObservationRequest) => {
-    try {
-      const response = await fetch('/api/observations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(observation),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create observation');
-      }
-
-      // Refresh the observations list
-      await fetchObservations();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    }
-  };
-
-  const deleteObservation = async (id: number) => {
-    try {
-      const response = await fetch(`/api/observations/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete observation');
-      }
-
-      // Refresh the observations list
-      await fetchObservations();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    fetchObservations();
-  }, []);
-
-  return {
-    observations,
-    loading,
-    error,
-    createObservation,
-    deleteObservation,
-    refetch: fetchObservations,
-  };
-}
-
-================================================================================
-18. DONNÉES DES ACTIVITÉS - src/react-app/data/activities.ts
-================================================================================
-
-import { Activity } from '@/shared/types';
-
-export const ACTIVITIES: Activity[] = [
-  {
-    id: 'langage',
-    name: "Le Langage",
-    description: "Observation de la communication verbale, non-verbale et de la compréhension.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10h10"/><path d="M7 14h10"/></svg>`,
-    fields: [
-      { name: 'observed_communication', label: "Description de la communication observée", type: 'textarea', required: true },
-      { name: 'context', label: "Contexte de l'échange", type: 'text', required: false },
-      { name: 'vocabulary_level', label: "Niveau de vocabulaire utilisé", type: 'text', required: false }
-    ]
-  },
-  {
-    id: 'social',
-    name: "L'Intégration Sociale",
-    description: "Évaluation des interactions avec les pairs et les adultes.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13V2"/></svg>`,
-    fields: [
-      { name: 'interaction_type', label: "Type d'interaction (proche, distant, conflit)", type: 'text', required: true },
-      { name: 'peer_response', label: "Réponse des pairs", type: 'text', required: false },
-      { name: 'group_behavior', label: "Comportement en groupe", type: 'textarea', required: false }
-    ]
-  },
-  {
-    id: 'attention',
-    name: "L'Attention",
-    description: "Capacité à se concentrer sur une tâche ou une activité spécifique.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
-    fields: [
-      { name: 'focus_duration', label: "Durée de l'attention (estimation en minutes)", type: 'number', required: true },
-      { name: 'distractions', label: "Éléments de distraction observés", type: 'text', required: false },
-      { name: 'task_engagement', label: "Niveau d'engagement dans la tâche", type: 'textarea', required: false }
-    ]
-  },
-  {
-    id: 'motricite',
-    name: "Les Capacités Motrices",
-    description: "Observation de la motricité fine (préhension) et globale (mouvements du corps).",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dumbbell"><path d="m14.4 14.4-2.8-2.8a2 2 0 0 0-2.8 0L6.4 14.4"/><path d="m14.4 9.6 2.8 2.8a2 2 0 0 0 2.8 0L21.6 9.6"/><path d="m9.6 14.4-2.8 2.8a2 2 0 0 0 0 2.8l2.8 2.8"/><path d="m9.6 9.6-2.8-2.8a2 2 0 0 0 0-2.8L9.6 2.4"/></svg>`,
-    fields: [
-      { name: 'motor_type', label: "Type de motricité observée (Fine ou Globale)", type: 'text', required: true },
-      { name: 'observed_movement', label: "Description détaillée du mouvement", type: 'textarea', required: true },
-      { name: 'difficulty_level', label: "Niveau de difficulté perçu", type: 'text', required: false }
-    ]
-  },
-  {
-    id: 'jeux',
-    name: "Les Jeux et Activités",
-    description: "Observation des types de jeux, de la créativité et de la participation.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toy-brick"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M10 8V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/><path d="M6 8V5a2 2 0 0 0-2-2h-2"/></svg>`,
-    fields: [
-      { name: 'game_type', label: "Type de jeu (individuel, collaboratif, symbolique)", type: 'text', required: true },
-      { name: 'participation_level', label: "Degré de participation et d'initiative", type: 'text', required: false },
-      { name: 'notes', label: "Description de l'activité ou du jeu", type: 'textarea', required: false }
-    ]
-  },
-  {
-    id: 'autonomie',
-    name: "L'Autonomie",
-    description: "Observation des capacités d'autonomie (habillage, hygiène, gestion des affaires).",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-platter"><path d="M12 21v-4"/><path d="M22 17a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2h20v-2z"/><path d="M12 13v-2.5a3.5 3.5 0 1 0-7 0V13"/><path d="M12 13v-2.5a3.5 3.5 0 1 1 7 0V13"/></svg>`,
-    fields: [
-      { name: 'task_completed', label: "Tâche d'autonomie observée", type: 'text', required: true },
-      { name: 'assistance_needed', label: "Assistance requise (Oui/Non/Partielle)", type: 'text', required: false },
-      { name: 'self_management', label: "Notes sur la gestion de soi et l'initiative", type: 'textarea', required: false }
-    ]
-  }
-];
-
-================================================================================
-19. UTILITAIRES COULEURS - src/react-app/utils/activityColors.ts
-================================================================================
-
-// Mapping des couleurs pour chaque activité
-export const ACTIVITY_COLORS = {
-  langage: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-700',
-    accent: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    badgeBg: 'bg-blue-100',
-    badgeText: 'text-blue-800',
-    hoverBg: 'hover:bg-blue-100'
-  },
-  social: {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    text: 'text-emerald-700',
-    accent: 'bg-emerald-100',
-    iconColor: 'text-emerald-600',
-    badgeBg: 'bg-emerald-100',
-    badgeText: 'text-emerald-800',
-    hoverBg: 'hover:bg-emerald-100'
-  },
-  attention: {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    text: 'text-violet-700',
-    accent: 'bg-violet-100',
-    iconColor: 'text-violet-600',
-    badgeBg: 'bg-violet-100',
-    badgeText: 'text-violet-800',
-    hoverBg: 'hover:bg-violet-100'
-  },
-  motricite: {
-    bg: 'bg-orange-50',
-    border: 'border-orange-200',
-    text: 'text-orange-700',
-    accent: 'bg-orange-100',
-    iconColor: 'text-orange-600',
-    badgeBg: 'bg-orange-100',
-    badgeText: 'text-orange-800',
-    hoverBg: 'hover:bg-orange-100'
-  },
-  jeux: {
-    bg: 'bg-pink-50',
-    border: 'border-pink-200',
-    text: 'text-pink-700',
-    accent: 'bg-pink-100',
-    iconColor: 'text-pink-600',
-    badgeBg: 'bg-pink-100',
-    badgeText: 'text-pink-800',
-    hoverBg: 'hover:bg-pink-100'
-  },
-  autonomie: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-700',
-    accent: 'bg-amber-100',
-    iconColor: 'text-amber-600',
-    badgeBg: 'bg-amber-100',
-    badgeText: 'text-amber-800',
-    hoverBg: 'hover:bg-amber-100'
-  }
-};
-
-export function getActivityColors(activityId: string) {
-  return ACTIVITY_COLORS[activityId as keyof typeof ACTIVITY_COLORS] || {
-    bg: 'bg-gray-50',
-    border: 'border-gray-200',
-    text: 'text-gray-700',
-    accent: 'bg-gray-100',
-    iconColor: 'text-gray-600',
-    badgeBg: 'bg-gray-100',
-    badgeText: 'text-gray-800',
-    hoverBg: 'hover:bg-gray-100'
-  };
-}
-
-================================================================================
-20. CONFIGURATION TAILWIND - tailwind.config.js
-================================================================================
-
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/react-app/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
-
-================================================================================
-21. CONFIGURATION ESLINT - eslint.config.js
-================================================================================
-
-import js from "@eslint/js";
-import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
-
-export default tseslint.config(
-  { ignores: ["dist", "./worker-configuration.d.ts"] },
-  {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
-    rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-    },
-  }
-);
-
-================================================================================
-22. SCHÉMA DE BASE DE DONNÉES
-================================================================================
-
-CREATE TABLE observations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  activity_id TEXT NOT NULL,
-  activity_name TEXT NOT NULL,
-  observation_date DATETIME NOT NULL,
-  observer_id TEXT NOT NULL,
-  details TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  child_id INTEGER
-);
-
-CREATE TABLE children (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  birth_date DATE,
-  class_level TEXT,
-  notes TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-================================================================================
-FIN DU CODE SOURCE - APPLICATION ARGILE-B
-================================================================================
-
-Cette application web complète permet de gérer les observations pédagogiques 
-du développement des enfants dans 6 domaines clés :
-
-1. Le Langage - Communication verbale et non-verbale
-2. L'Intégration Sociale - Interactions avec pairs et adultes  
-3. L'Attention - Capacité de concentration
-4. Les Capacités Motrices - Motricité fine et globale
-5. Les Jeux et Activités - Créativité et participation
-6. L'Autonomie - Capacités d'autonomie personnelle
-
-Fonctionnalités principales :
-- Gestion des profils d'enfants
-- Création d'observations structurées par domaine
-- Catalogue de recherche et filtrage des observations
-- Interface responsive avec couleurs distinctives par activité
-- Génération de rapports PDF
-- Base de données SQLite/D1 pour la persistance
-- Architecture moderne avec React, TypeScript, Tailwind CSS, Hono
-- Déploiement sur Cloudflare Workers
-
-L'application est conçue pour les professionnels de l'éducation et de la 
-petite enfance souhaitant documenter et suivre le développement des enfants
-de manière structurée et professionnelle.
